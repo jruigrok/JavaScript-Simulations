@@ -164,4 +164,3 @@ function checkKeyUp(e) {
   }
 }
 draw();
-/* Test */
