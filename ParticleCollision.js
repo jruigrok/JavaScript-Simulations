@@ -1,4 +1,5 @@
 //dont change these values
+// comment
 var particles = [];
 var walls = [];
 var sliders = [];
