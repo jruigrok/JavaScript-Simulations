@@ -1,6 +1,8 @@
 var deleted = 0;
 var polygons = [];
+var circles = [];
 var moveObject = 0;
+var speed = 2;
 function draw() {
 
   gameArea.width = window.innerWidth;
@@ -12,147 +14,299 @@ function draw() {
   }
 
   window.addEventListener('keydown', function (e) {
-    if (e.keyCode == 37) {moveObject.xVel = -1; }
-    if (e.keyCode == 39) {moveObject.xVel = 1; }
-    if (e.keyCode == 38) {moveObject.yVel = -1; }
-    if (e.keyCode == 40) {moveObject.yVel = 1; }
+    if (e.keyCode == 37) {moveObject.xVel = -speed; }
+    if (e.keyCode == 39) {moveObject.xVel = speed; }
+    if (e.keyCode == 38) {moveObject.yVel = -speed; }
+    if (e.keyCode == 40) {moveObject.yVel = speed; }
   })
   window.addEventListener('keyup', function (e) {
     if (e.keyCode == 37 || e.keyCode == 39) {moveObject.xVel = 0; }
     if (e.keyCode == 38 || e.keyCode == 40) {moveObject.yVel = 0; }
   })
 
+  function getRndInteger(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function drawCircle(x, y, r, c) {
+    ctx.beginPath();
+    ctx.strokeStyle = c;
+    ctx.lineWidth = r;
+    ctx.arc(x, y, r / 2, 0, 2 * Math.PI);
+    ctx.stroke();
+  }
+
+  function checkObjects(obj){
+    for(var i = 0; i < polygons.length; i++){
+      if(polygons[i].col != obj && polygons[i] != obj){
+        collision(obj,polygons[i]);
+      }
+    }
+    for(var i = 0; i < circles.length; i++){
+      if(circles[i].col != obj && circles[i] != obj){
+        collision(obj,circles[i]);
+      }
+    }
+  }
 
   function collision(ob1,ob2){
     if(ob1.type == 'circle' && ob2.type == 'circle'){
       let dx = ob2.x - ob1.x;
       let dy = ob2.y - ob1.y;
       let d = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
-      let s = (ob1.r + ob2.r) - d;
-      let nx = dx / d;
-      let ny = dy / d;
-      ob1.x -= (nx * s / 2);
-      ob1.y -= (ny * s / 2);
-      ob2.x += (nx * s / 2);
-      ob2.y += (ny * s / 2);
-      ob2.col = ob1;
-      ob1.col = ob2;
+      if(d < ob1.r + ob2.r){
+        let s = (ob1.r + ob2.r) - d;
+        let nx = dx/d;
+        let ny = dy/d;
+        resolveCollision(ob1,ob2,s,nx,ny);
+      }
 
     }else if(ob1.type == 'polygon' && ob2.type == 'polygon'){
-      var newOb1X = [];
-      var newOb2X = [];
-      var dx = 0;
-      var dy = 0;
-      var s = 0;
-      var a = 0;
       var smallestOverlap = Infinity;
-      var changeX = 0;
-      var changeY = 0;
+      var cx = 0;
+      var cy = 0;
       var col = true;
-      var d = 0;
+      if(ob1.maxX > ob2.maxX && ob2.maxX < ob1.minX){
+        col = false;
+      }else if(ob2.minX > ob1.maxX && ob2.maxX > ob1.maxX){
+        col = false;
+      }else if(ob1.maxY > ob2.maxY && ob2.maxY < ob1.minY){
+        col = false;
+      }else if(ob2.minY > ob1.maxY && ob2.maxY > ob1.maxY){
+        col = false;
+      }
       for(var j = 0; j < ob1.numSides + ob2.numSides; j++){
         if(col){
+          var newOb1X = [];
+          var newOb2X = [];
           if(j < ob1.numSides){
-            dy = (gameArea.height - ob1.y[j]) - (gameArea.height - ob1.y[j + 1]);
-            dx = ob1.x[j] - ob1.x[j + 1];
+            var dy = (gameArea.height - ob1.y[j]) - (gameArea.height - ob1.y[j + 1]);
+            var dx = ob1.x[j] - ob1.x[j + 1];
           }else{
-            dy = (gameArea.height - ob2.y[(j - ob1.numSides)]) - (gameArea.height - ob2.y[(j - ob1.numSides) + 1]);
-            dx = ob2.x[(j - ob1.numSides)] - ob2.x[(j - ob1.numSides) + 1];
+            var dy = (gameArea.height - ob2.y[(j - ob1.numSides)]) - (gameArea.height - ob2.y[(j - ob1.numSides) + 1]);
+            var dx = ob2.x[(j - ob1.numSides)] - ob2.x[(j - ob1.numSides) + 1];
           }
-          d = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
-          s = dy / dx;
-          a = Math.atan(-1/s);
+          var s = dy / dx;
+          var a = Math.atan(-1/s);
           for(var i = 0; i < ob1.numSides; i++){
             newOb1X.push((ob1.x[i] * Math.cos(a)) - (ob1.y[i] * Math.sin(a)));
           }
           for(var i = 0; i < ob2.numSides; i++){
-              newOb2X.push((ob2.x[i] * Math.cos(a)) - (ob2.y[i] * Math.sin(a)));
+            newOb2X.push((ob2.x[i] * Math.cos(a)) - (ob2.y[i] * Math.sin(a)));
           }
-          
           var ob1GX = Math.max(...newOb1X);
           var ob1SX = Math.min(...newOb1X);
           var ob2GX = Math.max(...newOb2X);
           var ob2SX = Math.min(...newOb2X);
-          
           if(ob1GX < ob2SX && ob1SX < ob2GX || ob2GX < ob1SX && ob2SX < ob1GX){
             col = false;
+            break;
           }else{
             if(Math.abs(ob2SX - ob1GX) < Math.abs(ob2GX - ob1SX)){
-              overlap = ob2SX - ob1GX;
+              var overlap = ob2SX - ob1GX;
             }else{
-              overlap = ob2GX - ob1SX;
+              var overlap = ob2GX - ob1SX;
             }
             if(Math.abs(overlap) < Math.abs(smallestOverlap)){
               smallestOverlap = overlap;
-              changeX = Math.cos(a);
-              changeY = Math.sin(a);
+              cx = Math.cos(a);
+              cy = Math.sin(a);
             }
           }
-          newOb1X = [];
-          newOb2X = [];
-          newOb1Y = [];
-          newOb2Y = [];
         }
       } 
-      console.log(col);
       if(col){
-        console.log(smallestOverlap);
-        ob1.move((smallestOverlap * changeX)/2,(smallestOverlap * -changeY)/2);
-        ob2.move(-(smallestOverlap * changeX)/2,-(smallestOverlap * -changeY)/2);
-        ob1.col = true;
-        ob2.col = true;
+        resolveCollision(ob1,ob2,smallestOverlap,cx,cy)
       }
     }
+    /*if((ob1.type == 'circle' && ob2.type == 'polygon') || (ob2.type == 'circle' && ob1.type == 'polygon')){
+      var smallestOverlap = Infinity;
+      var cx = 0;
+      var cy = 0;
+      var col = true;
+      if(ob1.type == 'circle'){
+        var Circle = ob1;
+        var Polygon = ob2;
+      }else{
+        var Circle = ob2;
+        var Polygon = ob1;
+      }
+      //console.log(Circle);
+      //console.log(Polygon);
+      for(j = 0; j < Polygon.numSides; j++){
+        var newPolygonX = [];
+        var newCircleX = 0;
+        var dy = (gameArea.height - Circle.y) - (gameArea.height - Polygon.y[j]);
+        var dx = Circle.x - Polygon.x[j];
+        var s = dy / dx;
+        var a = Math.atan(-1/s);
+        for(var i = 0; i < Polygon.numSides; i++){
+          newPolygonX.push((Polygon.x[i] * Math.cos(a)) - (Polygon.y[i] * Math.sin(a)));
+        }
+        newCircleX = ((Circle.x * Math.cos(a)) - (Circle.y * Math.sin(a)));
+
+        var polygonGX = Math.max(...newPolygonX);
+        var polygonSX = Math.min(...newPolygonX);
+
+        //console.log(newCircleX + ',' + polygonGX + ',' + polygonSX);
+
+        if(newCircleX - Circle.r > polygonGX || newCircleX + Circle.r < polygonSX){
+          col = false;
+          break;
+        }else{
+          if(Math.abs((newCircleX - Circle.r) - polygonGX) < Math.abs((newCircleX + Circle.r) - polygonSX)){
+            var overlap = (newCircleX - Circle.r) - polygonGX;
+          }else{
+            var overlap = (newCircleX + Circle.r) - polygonSX;
+          }
+          if(Math.abs(overlap) < Math.abs(smallestOverlap)){
+            smallestOverlap = overlap;
+            cx = Math.cos(a);
+            cy = Math.sin(a);
+          }
+        }
+      }
+      if(col){
+        //console.log(col);
+        //resolveCollision(ob1,ob2,smallestOverlap,cx,cy)
+      }
+    }*/
   }
- 
-  var polygon = function(color,xVel,yVel){
+  
+
+  function resolveCollision(ob1,ob2,overlap,cx,cy){
+    ob1.col = ob2;
+    ob2.col = ob1;
+    let k = -2 * ((ob2.xVel - ob1.xVel) * cx + (ob2.yVel - ob1.yVel) * -cy) / (1 / ob2.m + 1 / ob1.m);
+    ob2.move(-(overlap * cx)/2,-(overlap * -cy)/2);
+    ob1.move((overlap * cx)/2,(overlap * -cy)/2);
+
+    if(ob1.colType == 'bounce'){
+      ob1.xVel -= k * cx / ob1.m;
+      ob1.yVel -= k * -cy / ob1.m;
+    }
+    if(ob2.colType == 'bounce'){
+      ob2.xVel += k * cx / ob2.m;
+      ob2.yVel += k * -cy / ob2.m;
+    }
+  }
+
+  var polygon = function(color,xVel,yVel,x,y,m,colType){
     this.color = color;
-    this.x = [];
-    this.y = [];
+    this.x = x;
+    this.y = y;
     this.xVel = xVel;
     this.yVel = yVel;
     this.col = false;
-    var i = 3;  
-  	while(arguments[i] != false){
-      this.x.push(arguments[i]);
-      this.y.push(arguments[i + 1]);
-      i += 2;
-    }
-    this.x.push(arguments[3]);
-    this.y.push(arguments[4]);
-    this.numSides = (arguments.length/2) - 2;
+    this.numSides = (this.x.length);
     this.type = 'polygon';
+    this.maxX = Math.max(...x);
+    this.minX = Math.min(...x);
+    this.maxY = Math.max(...y);
+    this.minY = Math.min(...y);
+    this.x.push(this.x[0]);
+    this.y.push(this.y[0]);
+    this.m = m;
+    this.colType = colType;
   }
 
   polygon.prototype.render = function(){
+    ctx.lineWidth = 1;
+    checkObjects(this);
+    checkBoarders(this);
+    this.move(this.xVel,this.yVel);
+    this.col = false;
     ctx.beginPath();
     ctx.strokeStyle = this.color;
     ctx.lineCap = 'round';
     ctx.moveTo(this.x[0],this.y[0]);
-    for(var i = 1; i < this.x.length - 1; i++){
+    for(var i = 1; i < this.x.length; i++){
       ctx.lineTo(this.x[i],this.y[i]);
     }
     ctx.fillStyle = this.color;
     ctx.fill();
     ctx.stroke();
-    this.move(this.xVel,this.yVel);
-    for(var i = 0; i < polygons.length; i++){
-      if(polygons[i].col == false && polygons[i] != this){
-        collision(this,polygons[i]);
-      }
-    }
-    this.col = false;
   }
+
   polygon.prototype.move = function(x,y){
     for(var i = 0; i < this.numSides + 1; i++){
       this.x[i] += x;
       this.y[i] += y;
     }
+    this.maxX = Math.max(...this.x);
+    this.minX = Math.min(...this.x);
+    this.maxY = Math.max(...this.y);
+    this.minY = Math.min(...this.y);
   }
 
   polygon.prototype.delete = function() {
     var indexToDelete = polygons.indexOf(this);
     polygons.splice(indexToDelete, 1);
+    deleted += 1;
+  }
+
+  function checkBoarders(obj){
+      if(obj.minY < 0){
+        obj.move(0,-obj.minY);
+        if(obj.colType == 'bounce'){
+          obj.yVel *= -1;
+        }
+      }
+      if(obj.maxY > gameArea.height){
+        obj.move(0,gameArea.height - obj.maxY); 
+        if(obj.colType == 'bounce'){
+          obj.yVel *= -1;
+        }      
+      }
+      if(obj.maxX > gameArea.width){
+        obj.move(gameArea.width - obj.maxX,0); 
+        if(obj.colType == 'bounce'){
+          obj.xVel *= -1;
+        }      
+      }
+      if(obj.minX < 0){
+        obj.move(-obj.minX,0); 
+        if(obj.colType == 'bounce'){
+          obj.xVel *= -1;
+        }      
+      }
+  }
+
+  var circle = function(x,y,xVel,yVel,r,c,m,colType){
+    this.x = x;
+    this.y = y;
+    this.xVel = xVel;
+    this.yVel = yVel;
+    this.r = r;
+    this.c = c;
+    this.col = false;
+    this.type = 'circle';
+    this.m = m;
+    this.colType = colType;
+    this.maxX = this.x + this.r;
+    this.minX = this.x - this.r;
+    this.maxY = this.y + this.r;
+    this.minY = this.y - this.r;
+  }
+
+  circle.prototype.render = function(){
+    this.move(this.xVel,this.yVel);
+    checkObjects(this);
+    drawCircle(this.x,this.y,this.r,this.c);
+  }
+
+  circle.prototype.move = function(x,y){
+    this.x += x;
+    this.y += y;
+    this.maxX = this.x + this.r;
+    this.minX = this.x - this.r;
+    this.maxY = this.y + this.r;
+    this.minY = this.y - this.r;
+  }
+
+  circle.prototype.delete = function() {
+    var indexToDelete = circles.indexOf(this);
+    circles.splice(indexToDelete, 1);
     deleted += 1;
   }
 
@@ -165,13 +319,32 @@ function draw() {
     }
   }
 
-  polygons.push(new polygon('rgb(0,255,0)',0,0,300,100,325,150,375,150,400,125,350,90,false));
-  polygons.push(new polygon('rgb(255,0,0)',0,0,100,80,125,10,150,80,125,150,false));
-  polygons.push(new polygon('rgb(0,0,255)',0,0,400,300,500,300,450,350,false));
-  polygons.push(new polygon('rgb(0,255,255)',0,0,100,200,200,200,200,300,100,300,false));
+  function regularPolygon(xVel,yVel,x,y,r,c,n,dirz,colType){
+    var X = [];
+    var Y = [];
+    var a = 0;
+    for(var i = 0; i < n; i++){
+      X[i] = (Math.sin(a + dirz) * r + x);
+      Y[i] = (Math.cos(a + dirz) * r + y);
+      a += (Math.PI * 2)/n; 
+    }
+    polygons.push(new polygon(c,xVel,yVel,X,Y,r * r,colType));
+  }
+  //regularPolygon(5,0,150,220,20,'rgb(255,0,0)',4,45/360 * Math.PI *2,'bounce');
+  //regularPolygon(-5,0,500,200,20,'rgb(255,0,0)',4,45/360 * Math.PI *2,'bounce');
+  //regularPolygon(-5,0,1000,200,20,'rgb(255,0,0)',4,45/360 * Math.PI *2,'bounce');
+
+  //polygons.push(new polygon('rgb(0,255,0)',0,0,[300,325,375,400,350],[100,150,150,125,90]));
+  //polygons.push(new polygon('rgb(255,0,0)',0,0,[100,125,150,125],[80,10,80,150]));
+  regularPolygon(0,0,gameArea.width/2,gameArea.height/2,50,'rgb(255,0,0)',4,0,'static');
+  for(var i = 0; i < 10; i++){
+   regularPolygon(getRndInteger(-300,300)/100,getRndInteger(-300,300)/100,gameArea.width/2,gameArea.height/2,getRndInteger(20,50),'rgb(255,0,0)',getRndInteger(3,10),getRndInteger(0,Math.PI*200)/100,'bounce');
+  }
+  //circles.push(new circle(250,150,-1,0,20,'rgb(255,0,0)',Math.PI * 400,'bounce'));
   moveObject = polygons[0];
   function refresh(){
     draw.clearRect(0, 0, gameArea.width, gameArea.height);
+    renderObject(circles);
     renderObject(polygons);
     window.requestAnimationFrame(refresh);
   }

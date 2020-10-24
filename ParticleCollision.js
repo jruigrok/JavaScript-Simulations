@@ -312,7 +312,6 @@ function draw() {
       ob2.xVel += k * nx / ob2.m;
       ob2.yVel += k * ny / ob2.m;
     }
-    ob1.m / ob2.m;
     ob1.x -= (nx * s / 2);
     ob1.wallCollision('x');
     ob1.y -= (ny * s / 2);
@@ -380,18 +379,11 @@ function draw() {
     }
   }
 
-
-  function trackMouse() {
-
-    if (mouseDown) {
-      drawCircle(mouseX, mouseY, 5, 'rgb(0,255,0)');
-    }
-  }
   //for(var i = 0; i < 40; i++){
   //  particles.push(new particle(getRndInteger(gw/2 -2,gw/2 + 20),getRndInteger(gh/2 - 20,gh/2 + 20),getRndInteger(0,2 * Math.PI),2,getRndInteger(10,40),"#e43f5a",'bounce'));
   //}
-  particles.push(new particle(50, gh / 2, 0, 5, 25, 'rgb(0,255,0)', 'bounce'));
-  particles.push(new particle(gw - 50, gh / 2, Math.PI, 5, 15, 'rgb(0,255,0)', 'bounce'));
+  particles.push(new particle(100, gh / 2, 0, 5, 25, 'rgb(0,255,0)', 'bounce'));
+  particles.push(new particle(gw - 100, gh / 2, Math.PI, 5, 15, 'rgb(0,255,0)', 'bounce'));
   walls.push(new wall(gw - 50, 0, gw, gh, '#1f4068'));
   walls.push(new wall(0, 0, 50, gh, '#1f4068'));
   walls.push(new wall(0, 0, gw, 50, '#1f4068'));
@@ -403,7 +395,6 @@ function draw() {
     draw.clearRect(0, 0, gameArea.width, gameArea.height);
     renderObject(particles);
     renderObject(walls);
-    trackMouse();
     settings();
     renderObject(sliders);
     createparticle();
