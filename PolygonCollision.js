@@ -3,6 +3,7 @@ var polygons = [];
 var circles = [];
 var moveObject = 0;
 var speed = 2;
+var colPresicion = 0.4;
 function draw() {
 
   gameArea.width = window.innerWidth;
@@ -38,12 +39,12 @@ function draw() {
 
   function checkObjects(obj){
     for(var i = 0; i < polygons.length; i++){
-      if(polygons[i].col != obj && polygons[i] != obj){
+      if(polygons[i].col != obj && polygons[i] != obj && polygons[i].colType != 'none' && this.col != polygons[i]){
         collision(obj,polygons[i]);
       }
     }
     for(var i = 0; i < circles.length; i++){
-      if(circles[i].col != obj && circles[i] != obj){
+      if(circles[i].col != obj && circles[i] != obj && polygons[i].colType != 'none'){
         collision(obj,circles[i]);
       }
     }
@@ -66,13 +67,13 @@ function draw() {
       var cx = 0;
       var cy = 0;
       var col = true;
-      if(ob1.maxX > ob2.maxX && ob2.maxX < ob1.minX){
+      if(ob1.maxX >= ob2.maxX && ob2.maxX <= ob1.minX){
         col = false;
-      }else if(ob2.minX > ob1.maxX && ob2.maxX > ob1.maxX){
+      }else if(ob2.minX >= ob1.maxX && ob2.maxX >= ob1.maxX){
         col = false;
-      }else if(ob1.maxY > ob2.maxY && ob2.maxY < ob1.minY){
+      }else if(ob1.maxY >= ob2.maxY && ob2.maxY <= ob1.minY){
         col = false;
-      }else if(ob2.minY > ob1.maxY && ob2.maxY > ob1.maxY){
+      }else if(ob2.minY >= ob1.maxY && ob2.maxY >= ob1.maxY){
         col = false;
       }
       for(var j = 0; j < ob1.numSides + ob2.numSides; j++){
@@ -98,11 +99,11 @@ function draw() {
           var ob1SX = Math.min(...newOb1X);
           var ob2GX = Math.max(...newOb2X);
           var ob2SX = Math.min(...newOb2X);
-          if(ob1GX < ob2SX && ob1SX < ob2GX || ob2GX < ob1SX && ob2SX < ob1GX){
+          if((ob1GX - colPresicion <= ob2SX && ob1SX - colPresicion <= ob2GX) || (ob2GX - colPresicion <= ob1SX && ob2SX - colPresicion <= ob1GX)){
             col = false;
             break;
           }else{
-            if(Math.abs(ob2SX - ob1GX) < Math.abs(ob2GX - ob1SX)){
+            if(Math.abs(ob2SX - ob1GX) <= Math.abs(ob2GX - ob1SX)){
               var overlap = ob2SX - ob1GX;
             }else{
               var overlap = ob2GX - ob1SX;
@@ -116,6 +117,7 @@ function draw() {
         }
       } 
       if(col){
+        console.log(col);
         resolveCollision(ob1,ob2,smallestOverlap,cx,cy)
       }
     }
@@ -178,16 +180,33 @@ function draw() {
     ob1.col = ob2;
     ob2.col = ob1;
     let k = -2 * ((ob2.xVel - ob1.xVel) * cx + (ob2.yVel - ob1.yVel) * -cy) / (1 / ob2.m + 1 / ob1.m);
-    ob2.move(-(overlap * cx)/2,-(overlap * -cy)/2);
-    ob1.move((overlap * cx)/2,(overlap * -cy)/2);
+    let k2 = -2 * ((ob2.xVel - ob1.xVel) * cx + (ob2.yVel - ob1.yVel) * -cy);
+    if(ob1.colType == 'static'){
+      ob2.move(-(overlap * cx),-(overlap * -cy));
+    }else if(ob2.colType == 'static'){
+      ob1.move((overlap * cx),(overlap * -cy)); 
+    }else{
+      ob2.move(-(overlap * cx)/2,-(overlap * -cy)/2);
+      ob1.move((overlap * cx)/2,(overlap * -cy)/2);
+    }
 
     if(ob1.colType == 'bounce'){
-      ob1.xVel -= k * cx / ob1.m;
-      ob1.yVel -= k * -cy / ob1.m;
+      if(ob2.colType != 'bounce'){
+        ob1.xVel -= k2 * cx;
+        ob1.yVel -= k2 * -cy;
+      }else{
+        ob1.xVel -= k * cx / ob1.m;
+        ob1.yVel -= k * -cy / ob1.m;
+      }
     }
     if(ob2.colType == 'bounce'){
-      ob2.xVel += k * cx / ob2.m;
-      ob2.yVel += k * -cy / ob2.m;
+      if(ob1.colType != 'bounce'){
+        ob2.xVel += k2 * cx;
+        ob2.yVel += k2 * -cy;
+      }else{
+        ob2.xVel += k * cx / ob2.m;
+        ob2.yVel += k * -cy / ob2.m;
+      }
     }
   }
 
@@ -212,8 +231,10 @@ function draw() {
 
   polygon.prototype.render = function(){
     ctx.lineWidth = 1;
-    checkObjects(this);
-    checkBoarders(this);
+    if(this.colType != 'none'){
+      checkObjects(this);
+      checkBoarders(this);
+    }
     this.move(this.xVel,this.yVel);
     this.col = false;
     ctx.beginPath();
@@ -330,15 +351,10 @@ function draw() {
     }
     polygons.push(new polygon(c,xVel,yVel,X,Y,r * r,colType));
   }
-  //regularPolygon(5,0,150,220,20,'rgb(255,0,0)',4,45/360 * Math.PI *2,'bounce');
-  //regularPolygon(-5,0,500,200,20,'rgb(255,0,0)',4,45/360 * Math.PI *2,'bounce');
-  //regularPolygon(-5,0,1000,200,20,'rgb(255,0,0)',4,45/360 * Math.PI *2,'bounce');
 
-  //polygons.push(new polygon('rgb(0,255,0)',0,0,[300,325,375,400,350],[100,150,150,125,90]));
-  //polygons.push(new polygon('rgb(255,0,0)',0,0,[100,125,150,125],[80,10,80,150]));
-  regularPolygon(0,0,gameArea.width/2,gameArea.height/2,50,'rgb(255,0,0)',4,0,'static');
+  regularPolygon(0,0,gameArea.width/2,gameArea.height/2,50,'rgb(0,255,0)',4,0,'static');
   for(var i = 0; i < 10; i++){
-   regularPolygon(getRndInteger(-300,300)/100,getRndInteger(-300,300)/100,gameArea.width/2,gameArea.height/2,getRndInteger(20,50),'rgb(255,0,0)',getRndInteger(3,10),getRndInteger(0,Math.PI*200)/100,'bounce');
+    regularPolygon(getRndInteger(-5,5),getRndInteger(-5,5),gameArea.width/2,gameArea.height/2,getRndInteger(20,50),'rgb(255,0,0)',getRndInteger(3,10),getRndInteger(0,Math.PI*200)/100,'bounce');
   }
   //circles.push(new circle(250,150,-1,0,20,'rgb(255,0,0)',Math.PI * 400,'bounce'));
   moveObject = polygons[0];
