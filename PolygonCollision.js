@@ -175,12 +175,6 @@ function draw() {
         var newX2 = (Polygon.x[side + 1] * ax) - (Polygon.y[side + 1] * ay);
         var newCircleX = (Circle.x * ax) - (Circle.y * ay);
         var newCircleY = (Circle.x * ay) + (Circle.y * ax);
-        /*ctx.beginPath();
-        ctx.strokeStyle = 'rgb(0,0,255)';
-        ctx.lineWidth = 10;
-        ctx.moveTo(Polygon.x[side],Polygon.y[side]);
-        ctx.lineTo(Polygon.x[side + 1],Polygon.y[side + 1]);
-        ctx.stroke();*/
         if(newY2 < newY){
           mem = newY2;
           newY2 = newY;
@@ -212,11 +206,6 @@ function draw() {
           var ay = Math.sin(a);
           var newPolygonX = (closestX * ax) - (closestY * ay);
           var newCircleX = (Circle.x * ax) - (Circle.y * ay);
-          /*ctx.beginPath();
-          ctx.strokeStyle = 'rgb(255,0,0)';
-          ctx.moveTo(closestX,closestY);
-          ctx.lineTo(Circle.x,Circle.y);
-          ctx.stroke();*/
           var d = Math.sqrt(Math.pow(Circle.x - closestX,2) + Math.pow(Circle.y - closestY,2));
           if(Math.abs(Circle.r/2 - d) > Math.abs(Circle.r)/2){
             col = false;
@@ -398,7 +387,7 @@ function draw() {
     }
   }
 
-  function regularPolygon(xVel,yVel,x,y,r,c,n,dirz,colType,m){
+  function regularPolygon(x,y,xVel,yVel,r,c,m,colType,n,dirz){
     var X = [];
     var Y = [];
     var a = 0;
@@ -409,13 +398,13 @@ function draw() {
     }
     shapes.push(new polygon(c,xVel,yVel,X,Y,m,colType));
   }
+  //shapes.push(new circle(gameArea.width/2,gameArea.height/2,0,0,20,'rgb(255,0,0)',Math.PI * 400,'static'));
   //shapes.push(new polygon('rgb(0,255,0',0,0,[100,150,200],[100,150,100],1,'static'));
-  //regularPolygon(0,0,150,gameArea.height/2,50,'rgb(0,255,0)',6,Math.PI/4,'static',1);
-  for(var i = 0; i < 10; i++){
-    regularPolygon(getRndInteger(-2,2),getRndInteger(-2,2),gameArea.width/2,gameArea.height/2,getRndInteger(20,50),'rgb(255,0,0)',getRndInteger(3,10),getRndInteger(0,Math.PI*200)/100,'bounce',1);
-    shapes.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),getRndInteger(-2,2),getRndInteger(-2,2),getRndInteger(20,50),'rgb(255,0,0)',1,'bounce'));
+  //regularPolygon(0,0,150,gameArea.height/2,50,'rgb(0,255,0)',5,Math.PI/4,'move',1);
+  for(var i = 0; i < 50; i++){
+    regularPolygon(gameArea.width/2,gameArea.height/2,getRndInteger(-2,2),getRndInteger(-2,2),getRndInteger(20,40),'rgb(255,0,0)',1,'bounce',getRndInteger(3,5),getRndInteger(0,Math.PI*200)/100);
+    shapes.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),getRndInteger(-2,2),getRndInteger(-2,2),getRndInteger(20,40),'rgb(255,0,0)',1,'bounce'));
   }
-  //shapes.push(new circle(gameArea.width/2,gameArea.height/2,0,0,20,'rgb(255,0,0)',Math.PI * 400,'move'));
   moveObject = shapes[0];
   function refresh(){
     draw.clearRect(0, 0, gameArea.width, gameArea.height);
