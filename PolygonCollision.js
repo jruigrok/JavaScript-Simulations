@@ -1,3 +1,25 @@
+/*
+Copyright (c) 2020 Jordan Ruigrok
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 var deleted = 0;
 var moveObject = 0;
 var speed = 2;
@@ -18,11 +40,11 @@ function draw() {
     if (e.keyCode == 39) {moveObject.xVel = speed; }
     if (e.keyCode == 38) {moveObject.yVel = -speed; }
     if (e.keyCode == 40) {moveObject.yVel = speed; }
-  })
+  });
   window.addEventListener('keyup', function (e) {
     if (e.keyCode == 37 || e.keyCode == 39) {moveObject.xVel = 0; }
     if (e.keyCode == 38 || e.keyCode == 40) {moveObject.yVel = 0; }
-  })
+  });
 
   function getRndInteger(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
