@@ -192,11 +192,9 @@ function draw() {
           if(Math.abs(newCircleX - PolygonGX) > Math.abs(newCircleX - PolygonSX)){
             var closestPolygon = PolygonSX;
             var closestCircle = CircleGX;
-            var infront = true;
           }else{
             var closestPolygon = PolygonGX;
             var closestCircle = CircleSX;
-            var infront = false;
           }
           var overlap = closestPolygon - closestCircle;
           var newY = newPolygonY[i];
@@ -207,11 +205,11 @@ function draw() {
             newY = mem;
           }
           if(PolygonGX > newPolygonX[i]){
-            if(newCircleY > newY2 || newCircleY < newY || newCircleX > newPolygonX[i]){
+            if(newCircleY > newY2 || newCircleY < newY || newCircleX > newPolygonX[i] && Polygon.numSides > 2){
               overlap = 1000;
             }
           }else{
-            if(newCircleY > newY2 || newCircleY < newY || newCircleX < newPolygonX[i]){
+            if(newCircleY > newY2 || newCircleY < newY || newCircleX < newPolygonX[i] && Polygon.numSides > 2){
               overlap = 1000;
             }
           }
@@ -446,9 +444,9 @@ function draw() {
     }
     shapes.push(new polygon(c,xVel,yVel,X,Y,m,colType));
   }
-  shapes.push(new circle(100,gameArea.height/2,0,0,20,'rgb(255,0,0)',Math.PI * 400,'static'));
+  shapes.push(new circle(100,gameArea.height/2,0,0,40,'rgb(255,0,0)',Math.PI * 400,'move'));
   regularPolygon(100,gameArea.height/2,0,0,20,'rgb(255,0,0)',1,'move',6,0);
-  shapes.push(new polygon('rgb(0,255,0',0,0,[200,400,400,200],[50,100,250,200],1,'static'));
+  shapes.push(new polygon('rgb(0,255,0',0,0,[200,400],[50,100],1,'static'));
   for(var i = 0; i < 100; i++){
     //regularPolygon(gameArea.width/2,gameArea.height/2,getRndInteger(-3,3),getRndInteger(-3,3),getRndInteger(10,20),'rgb(255,0,0)',1,'bounce',getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
     //shapes.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),getRndInteger(-3,3),getRndInteger(-3,3),getRndInteger(10,20),'rgb(255,0,0)',1,'bounce'));
