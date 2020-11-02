@@ -170,14 +170,17 @@ function draw() {
         var s = dy / dx;
         var a = Math.atan(-1/s);
         var newPolygonX = [];
-        var newCircleX = 0;
+        var newPolygonY = [];
         var smallestOverlap = Infinity;
         var ax = Math.cos(a);
         var ay = Math.sin(a);
-        newCircleX = (Circle.x * ax) - (Circle.y * ay);
+        var newCircleX = (Circle.x * ax) - (Circle.y * ay);
+        var newCircleY = (Circle.x * ay) + (Circle.y * ax);
         for(var j = 0; j < Polygon.numSides; j++){
           newPolygonX[j] = (Polygon.x[j] * ax) - (Polygon.y[j] * ay);
+          newPolygonY[j] = (Polygon.x[j] * ay) + (Polygon.y[j] * ax);
         }
+        newPolygonY[newPolygonY.length] = (Polygon.x[0] * ay) + (Polygon.y[0] * ax);
         var PolygonGX = Math.max(...newPolygonX);
         var PolygonSX = Math.min(...newPolygonX);
         var CircleGX = newCircleX + Circle.r;
@@ -189,11 +192,29 @@ function draw() {
           if(Math.abs(newCircleX - PolygonGX) > Math.abs(newCircleX - PolygonSX)){
             var closestPolygon = PolygonSX;
             var closestCircle = CircleGX;
+            var infront = true;
           }else{
             var closestPolygon = PolygonGX;
             var closestCircle = CircleSX;
+            var infront = false;
           }
           var overlap = closestPolygon - closestCircle;
+          var newY = newPolygonY[i];
+          var newY2 = newPolygonY[i + 1];
+          if(newY2 < newY){
+            var mem = newY2;
+            newY2 = newY;
+            newY = mem;
+          }
+          if(PolygonGX > newPolygonX[i]){
+            if(newCircleY > newY2 || newCircleY < newY || newCircleX > newPolygonX[i]){
+              overlap = 1000;
+            }
+          }else{
+            if(newCircleY > newY2 || newCircleY < newY || newCircleX < newPolygonX[i]){
+              overlap = 1000;
+            }
+          }
           if(Math.abs(overlap) < Math.abs(d)){
             d = overlap;
             cx = -ax;
@@ -202,58 +223,34 @@ function draw() {
           }
         }
       }
-      if(col){
-        var dx = Polygon.x[side] - Polygon.x[side + 1];
-        var dy = (gameArea.height - Polygon.y[side]) - (gameArea.height - Polygon.y[side + 1]);
+      if(col && d != 1000){
+        resolveCollision(Polygon,Circle,d,cx,cy);
+      }
+      if(col && d == 1000){
+        for(var i = 0; i < Polygon.numSides; i++){
+          var x = Math.pow(Circle.x - Polygon.x[i],2);
+          var y = Math.pow(Circle.y - Polygon.y[i],2);
+          if(x + y < Math.pow(Circle.x - closestX,2) + Math.pow(Circle.y - closestY,2)){
+            closestX = Polygon.x[i];
+            closestY = Polygon.y[i];
+          }
+        }
+  
+        var col = true
+        var dy = (gameArea.height - Circle.y) - (gameArea.height - closestY);
+        var dx = Circle.x - closestX;
         var s = dy / dx;
-        var a = Math.atan(-1/s);
+        var a = Math.atan(s);
         var ax = Math.cos(a);
         var ay = Math.sin(a);
-        var mem = 0;
-        var newX = (Polygon.x[side] * ax) - (Polygon.y[side + 1] * ay);
-        var newX2 = (Polygon.x[side + 1] * ax) - (Polygon.y[side] * ay);
+        var newPolygonX = (closestX * ax) - (closestY * ay);
         var newCircleX = (Circle.x * ax) - (Circle.y * ay);
-        var newY = (Polygon.x[side] * ay) + (Polygon.y[side] * ax); 
-        var newY2 = (Polygon.x[side + 1] * ay) + (Polygon.y[side + 1] * ax);
-        var newCircleY = (Circle.x * ay) + (Circle.y * ax);
-        if(newY2 < newY){
-          mem = newY2;
-          newY2 = newY;
-          newY = mem;
+        var d = Math.sqrt(Math.pow(Circle.x - closestX,2) + Math.pow(Circle.y - closestY,2));
+        if(Math.abs(Circle.r/2 - d) > Math.abs(Circle.r)/2){
+          col = false;
         }
-        if(newX2 < newX){
-          mem = newX2;
-          newX2 = newX;
-          newX = mem;
-        }
-        if(newCircleY > newY && newCircleY < newY2){
-          resolveCollision(Polygon,Circle,d,cx,cy);
-        }else{
-          for(var i = 0; i < Polygon.numSides; i++){
-            var x = Math.pow(Circle.x - Polygon.x[i],2);
-            var y = Math.pow(Circle.y - Polygon.y[i],2);
-            if(x + y < Math.pow(Circle.x - closestX,2) + Math.pow(Circle.y - closestY,2)){
-              closestX = Polygon.x[i];
-              closestY = Polygon.y[i];
-            }
-          }
-    
-          var col = true
-          var dy = (gameArea.height - Circle.y) - (gameArea.height - closestY);
-          var dx = Circle.x - closestX;
-          var s = dy / dx;
-          var a = Math.atan(s);
-          var ax = Math.cos(a);
-          var ay = Math.sin(a);
-          var newPolygonX = (closestX * ax) - (closestY * ay);
-          var newCircleX = (Circle.x * ax) - (Circle.y * ay);
-          var d = Math.sqrt(Math.pow(Circle.x - closestX,2) + Math.pow(Circle.y - closestY,2));
-          if(Math.abs(Circle.r/2 - d) > Math.abs(Circle.r)/2){
-            col = false;
-          }
-          if(col){
-            resolveCollision(Polygon,Circle,Circle.r - d,-dx/d,-dy/d);
-          }
+        if(col){
+          resolveCollision(Polygon,Circle,Circle.r - d,-dx/d,-dy/d);
         }
       }
     }
@@ -449,13 +446,12 @@ function draw() {
     }
     shapes.push(new polygon(c,xVel,yVel,X,Y,m,colType));
   }
-  //shapes.push(new circle(100,gameArea.height/2,0,0,20,'rgb(255,0,0)',Math.PI * 400,'move'));
-  //regularPolygon(100,gameArea.height/2,0,0,20,'rgb(255,0,0)',1,'move',6,0);
-  //shapes.push(new polygon('rgb(0,255,0',0,0,[100,150,200],[100,150,100],1,'static'));
-  //shapes.push(new polygon('rgb(0,255,0',0,0,[200,350],[100,200],1,'static'));
+  shapes.push(new circle(100,gameArea.height/2,0,0,20,'rgb(255,0,0)',Math.PI * 400,'static'));
+  regularPolygon(100,gameArea.height/2,0,0,20,'rgb(255,0,0)',1,'move',6,0);
+  shapes.push(new polygon('rgb(0,255,0',0,0,[200,400,400,200],[50,100,250,200],1,'static'));
   for(var i = 0; i < 100; i++){
-    regularPolygon(gameArea.width/2,gameArea.height/2,getRndInteger(-3,3),getRndInteger(-3,3),getRndInteger(10,20),'rgb(255,0,0)',1,'bounce',getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
-    shapes.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),getRndInteger(-3,3),getRndInteger(-3,3),getRndInteger(10,20),'rgb(255,0,0)',1,'bounce'));
+    //regularPolygon(gameArea.width/2,gameArea.height/2,getRndInteger(-3,3),getRndInteger(-3,3),getRndInteger(10,20),'rgb(255,0,0)',1,'bounce',getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
+    //shapes.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),getRndInteger(-3,3),getRndInteger(-3,3),getRndInteger(10,20),'rgb(255,0,0)',1,'bounce'));
   }
   function refresh(){
     draw.clearRect(0, 0, gameArea.width, gameArea.height);
