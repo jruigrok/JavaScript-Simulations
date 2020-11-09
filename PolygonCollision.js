@@ -29,6 +29,8 @@ var hitBoxColor = 'rgb(0,255,0)';
 var debug = true;
 var objects = [];
 var collisions = [];
+var canada = new Image();
+canada.src = 'Canadian_flag.png'
 
 function draw() {
   gameArea.width = window.innerWidth;
@@ -204,12 +206,10 @@ function draw() {
             if(newCircleY < newY2 && newCircleY > newY && newCircleX < newPolygonX[i]){
               sideCol = true;
             }
-          }else if(Math.floor(PolygonGX) == Math.floor(newPolygonX[i])){
+          }else{
             if(newCircleY < newY2 && newCircleY > newY && newCircleX > newPolygonX[i]){
               sideCol = true;
             }
-          }else if(Circle.y < Polygon.maxY && Circle.y > Polygon.minY && Circle.x < Polygon.maxX && Circle.x > Polygon.minX){
-            sideCol = true;
           }
           if(sideCol && col){
             if(Math.abs(newCircleX - PolygonGX) > Math.abs(newCircleX - PolygonSX)){
@@ -275,7 +275,13 @@ function draw() {
     let k = -2 * ((this.ob2.xVel - this.ob1.xVel) * this.cx + (this.ob2.yVel - this.ob1.yVel) * -this.cy) / (1 / this.ob2.m + 1 / this.ob1.m);
     let k2 = -2 * ((this.ob2.xVel - this.ob1.xVel) * this.cx + (this.ob2.yVel - this.ob1.yVel) * -this.cy);
     if(this.ob1.colType != 'noResolve' && this.ob2.colType != 'noResolve'){
-      if(this.ob1.colType == 'static'){
+      if(this.ob1.colType == 'static' && this.ob2.colType == 'static'){
+        if(this.ob1.colPriority < this.ob2.colPriority){
+          this.ob2.anchorObj.move(-(this.overlap * this.cx),-(this.overlap * -this.cy));
+        }else{
+          this.ob1.anchorObj.move((this.overlap * this.cx),(this.overlap * -this.cy)); 
+        }
+      }else if(this.ob1.colType == 'static'){
         this.ob2.anchorObj.move(-(this.overlap * this.cx),-(this.overlap * -this.cy));
       }else if(this.ob2.colType == 'static'){
         this.ob1.anchorObj.move((this.overlap * this.cx),(this.overlap * -this.cy)); 
@@ -311,13 +317,13 @@ function draw() {
     deleted += 1;
   }
 
-  var polygonHB = function(anchorObj,fit,m,colType,type,x,y){
+  var polygonHB = function(anchorObj,fit,m,colType,x,y){
     this.fit = fit;
     this.anchorObj = anchorObj;
     if(this.fit != 'object'){
       this.x = x;
       this.y = y;
-      if(anchorObj.type == 'circle'){
+      if(anchorObj.type == 'circle' || 'image'){
         this.dx = anchorObj.x - this.x[0];
         this.dy = anchorObj.y - this.y[0];
       }else if(anchorObj.type == 'polygon'){
@@ -341,11 +347,12 @@ function draw() {
     this.ID = hitboxes.length;
     this.m = m;
     this.anchorObj.addObject(this);
+    this.colPriority = this.ID;
   }
 
   polygonHB.prototype.render = function(){
     if(this.fit != 'object'){
-      if(this.anchorObj.type == 'circle'){
+      if(this.anchorObj.type == 'circle' || 'image'){
         this.moveTo(this.anchorObj.x - this.dx,this.anchorObj.y - this.dy);
       }else if(this.anchorObj.type == 'polygon'){
         this.moveTo(this.anchorObj.x[0] - this.dx,this.anchorObj.y[0] - this.dy);
@@ -399,7 +406,7 @@ function draw() {
       this.x = x;
       this.y = y;
       this.r = r;
-      if(anchorObj.type == 'circle'){
+      if(anchorObj.type == 'circle' || 'image'){
         this.dx = anchorObj.x - this.x;
         this.dy = anchorObj.y - this.y;
       }else if(anchorObj.type == 'polygon'){
@@ -417,11 +424,12 @@ function draw() {
     this.ID = hitboxes.length;
     this.m = m;
     this.anchorObj.addObject(this);
+    this.colPriority = this.ID;
   }
 
   circleHB.prototype.render = function(){
     if(this.fit != 'object'){
-      if(this.anchorObj.type == 'circle'){
+      if(this.anchorObj.type == 'circle' || 'image'){
         this.moveTo(this.anchorObj.x - this.dx,this.anchorObj.y - this.dy);
       }else if(this.anchorObj.type == 'polygon'){
         this.moveTo(this.anchorObj.x[0] - this.dx,this.anchorObj.y[0] - this.dy);
@@ -559,6 +567,51 @@ function draw() {
     }
   }
 
+  var image = function(img,x,y,w,h,layer){
+    this.img = img;
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.layer = layer;
+    this.xVel = 0;
+    this.yVel = 0;
+    this.ax = 0;
+    this.ay = 0;
+    this.fill = true;
+    this.objects = [];
+    this.type = 'image';
+  }
+
+  image.prototype.render = function(){
+    ctx.drawImage(this.img,this.x,this.y,this.w,this.h);
+    this.xVel += this.ax;
+    this.yVel += this.ay;
+    this.move(this.xVel,this.yVel);
+  }
+
+  image.prototype.addObject = function(object){
+    this.objects.push(object);
+  }
+
+  image.prototype.moveTo = function(x,y){
+    this.x = x;
+    this.y = y;
+  }
+
+  image.prototype.move = function(x,y){
+    this.x += x;
+    this.y += y;
+  }
+
+  image.prototype.delete = function() {
+    var indexToDelete = objects.indexOf(this);
+    objects.splice(indexToDelete, 1);
+    deleted += 1;
+    for(var i = 0; i < objects.length; i++){
+      objects[i].delete;
+    }
+  }
 
   function resetCollisions(){
     collisions = [];
@@ -576,7 +629,7 @@ function draw() {
     }
   }
 
-  /*function regularPolygon(x,y,xVel,yVel,r,colType,layer,m,n,dirz){
+  function regularPolygon(x,y,r,layer,n,dirz,c){
     var X = [];
     var Y = [];
     var a = 0;
@@ -585,16 +638,27 @@ function draw() {
       Y[i] = (Math.cos(a + dirz) * r + y);
       a += (Math.PI * 2)/n; 
     }
-    hitboxes.push(new polygonHB(X,Y,colType,m,xVel,yVel,layer));
-  }*/
+    objects.push(new polygon(X,Y,c,layer));
+  }
+
+  objects.push(new image(canada,300,300,300,100,0));
+  hitboxes.push(new polygonHB(objects[0],'none',1,'static',[300,600,600,300],[300,300,400,400]));
+  hitboxes.push(new circleHB(objects[0],'none',1,'static',450,350,100));
+  objects.push(new circle(55,55,25,'rgb(255,0,0)',0));
+  hitboxes.push(new circleHB(objects[1],'object',1,'static'));
   objects.push(new polygon([100,200,150],[100,100,150],'rgb(255,0,0)',0));
-  hitboxes.push(new polygonHB(objects[0],'object',1,'static'));
-  objects.push(new circle(50,50,25,'rgb(255,0,0)',0));
-  hitboxes.push(new circleHB(objects[1],'object',1,'move'));
-  objects.push(new circle(250,250,25,'rgb(255,0,0)',0));
-  hitboxes.push(new circleHB(objects[2],'object',1,'move'));
-  objects.push(new polygon([300,350,400,375,325],[300,250,300,400,400],'rgb(255,0,0)',0));
-  hitboxes.push(new polygonHB(objects[3],'object',1,'move'));
+  hitboxes.push(new polygonHB(objects[2],'object',1,'move'));
+  objects.push(new circle(500,350,25,'rgb(255,0,0)',0));
+  hitboxes.push(new circleHB(objects[3],'object',1,'move'));
+  //objects.push(new polygon([300,600,600,300],[300,300,400,400],'rgb(255,0,0)',0));
+  
+  
+  objects.push(new polygon([300,400,375,325],[300,300,400,400],'rgb(255,0,0)',0));
+  hitboxes.push(new polygonHB(objects[4],'object',1,'move'));
+  
+  
+  
+  
   function refresh(){
     draw.clearRect(0, 0, gameArea.width, gameArea.height);
     renderObject(objects);
