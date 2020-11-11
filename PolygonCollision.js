@@ -1,16 +1,13 @@
 /*
 Copyright (c) 2020 Jordan Ruigrok
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,13 +21,14 @@ var deleted = 0;
 var speed = 2;
 var colPresicion = 0.4;
 var hitboxes = [];
+var test = true;
 var pressedKeys = [];
-var hitBoxColor = 'rgb(0,255,0)';
-var debug = true;
-var objects = [];
 var collisions = [];
+var debug = true;
+var debugColor = 'rgb(0,255,0)';
+var objects = [];
 var canada = new Image();
-canada.src = 'Canadian_flag.png'
+canada.src = 'Images/Among_Us_Character.png';
 
 function draw() {
   gameArea.width = window.innerWidth;
@@ -84,15 +82,16 @@ function draw() {
   function checkObjects(obj){
     for(var i = 0; i < hitboxes.length; i++){
       if(!(obj.maxX >= hitboxes[i].maxX && hitboxes[i].maxX <= obj.minX || hitboxes[i].minX >= obj.maxX && hitboxes[i].maxX >= obj.maxX || obj.maxY >= hitboxes[i].maxY && hitboxes[i].maxY <= obj.minY || hitboxes[i].minY >= obj.maxY && hitboxes[i].maxY >= obj.maxY)){
-        if(hitboxes[i].col != obj.ID && hitboxes[i].ID != obj.ID && hitboxes[i].colType != 'none' && this.col != hitboxes[i].ID && obj.anchorObj.layer == hitboxes[i].anchorObj.layer && obj.anchorObj != hitboxes[i].anchorObj){
+        if(hitboxes[i].col != obj.ID && hitboxes[i].ID != obj.ID && hitboxes[i].colType != 'none' && obj.anchorObj != hitboxes[i].anchorObj){
           detectCollision(obj,hitboxes[i]);
         }
       }
+      
     }
   }
 
   function detectCollision(ob1,ob2){
-    if(ob1.type == 'circle' && ob2.type == 'circle'){
+    if(ob1.type == 'circleHitBox' && ob2.type == 'circleHitBox'){
       var dx = ob2.x - ob1.x;
       var dy = ob2.y - ob1.y;
       var d = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
@@ -104,7 +103,7 @@ function draw() {
         collisions[collisions.length - 1].resolve();
       }
 
-    }else if(ob1.type == 'polygon' && ob2.type == 'polygon'){
+    }else if(ob1.type == 'polygonHitBox' && ob2.type == 'polygonHitBox'){
       var smallestOverlap = Infinity;
       var cx = 0;
       var cy = 0;
@@ -157,12 +156,13 @@ function draw() {
         collisions[collisions.length - 1].resolve();
       }
     }
-    if((ob1.type == 'circle' && ob2.type == 'polygon') || (ob2.type == 'circle' && ob1.type == 'polygon')){
+    if((ob1.type == 'circleHitBox' && ob2.type == 'polygonHitBox') || (ob2.type == 'circleHitBox' && ob1.type == 'polygonHitBox')){
       var col = true;
       var closestX = -Infinity;
       var closestY = -Infinity;
       var sideCol = false;
-      if(ob1.type == 'circle'){
+      var inside = 0;
+      if(ob1.type == 'circleHitBox'){
         var Circle = ob1;
         var Polygon = ob2;
       }else{
@@ -211,7 +211,10 @@ function draw() {
               sideCol = true;
             }
           }
-          if(sideCol && col){
+          if(newCircleX < PolygonGX && newCircleX > PolygonSX){
+            inside += 1;
+          }
+          if(sideCol && col || col && inside == Polygon.numSides){
             if(Math.abs(newCircleX - PolygonGX) > Math.abs(newCircleX - PolygonSX)){
               var closestPolygon = PolygonSX;
               var closestCircle = CircleGX;
@@ -226,11 +229,10 @@ function draw() {
           }
         }
       }
-      if(col && sideCol){
+      if(col && sideCol || inside == Polygon.numSides){
         collisions.push(new collision(Polygon,Circle,d,cx,cy));
         collisions[collisions.length - 1].resolve();
-      }
-      if(col && !sideCol){
+      }else if(col){
         for(var i = 0; i < Polygon.numSides; i++){
           var x = Math.pow(Circle.x - Polygon.x[i],2);
           var y = Math.pow(Circle.y - Polygon.y[i],2);
@@ -260,7 +262,7 @@ function draw() {
       }
     }
   }
-  
+
   var collision = function(ob1,ob2,overlap,cx,cy){
     this.ob1 = ob1;
     this.ob2 = ob2;
@@ -272,8 +274,8 @@ function draw() {
   collision.prototype.resolve = function(){
     this.ob1.col = this.ob2.ID;
     this.ob2.col = this.ob1.ID;
-    let k = -2 * ((this.ob2.xVel - this.ob1.xVel) * this.cx + (this.ob2.yVel - this.ob1.yVel) * -this.cy) / (1 / this.ob2.m + 1 / this.ob1.m);
-    let k2 = -2 * ((this.ob2.xVel - this.ob1.xVel) * this.cx + (this.ob2.yVel - this.ob1.yVel) * -this.cy);
+    let k = -2 * ((this.ob2.anchorObj.xVel - this.ob1.anchorObj.xVel) * this.cx + (this.ob2.anchorObj.yVel - this.ob1.anchorObj.yVel) * -this.cy) / (1 / this.ob2.m + 1 / this.ob1.m);
+    let k2 = -2 * ((this.ob2.anchorObj.xVel - this.ob1.anchorObj.xVel) * this.cx + (this.ob2.anchorObj.yVel - this.ob1.anchorObj.yVel) * -this.cy);
     if(this.ob1.colType != 'noResolve' && this.ob2.colType != 'noResolve'){
       if(this.ob1.colType == 'static' && this.ob2.colType == 'static'){
         if(this.ob1.colPriority < this.ob2.colPriority){
@@ -317,66 +319,69 @@ function draw() {
     deleted += 1;
   }
 
-  var polygonHB = function(anchorObj,fit,m,colType,x,y){
+  var polygonHitBox = function(anchorObj,fit,m,colType,x,y){
     this.fit = fit;
     this.anchorObj = anchorObj;
-    if(this.fit != 'object'){
+    if(this.fit){
+      this.x = anchorObj.x;
+      this.y = anchorObj.y;41
+      this.dx = 0;
+      this.dy = 0;
+    }else{
       this.x = x;
       this.y = y;
-      if(anchorObj.type == 'circle' || 'image'){
+      if(anchorObj.type == 'circle' || anchorObj.type == 'image'){
         this.dx = anchorObj.x - this.x[0];
         this.dy = anchorObj.y - this.y[0];
       }else if(anchorObj.type == 'polygon'){
         this.dx = anchorObj.x[0] - this.x[0];
         this.dy = anchorObj.y[0] - this.y[0];
       }
-    }else{
-      this.x = anchorObj.x;
-      this.y = anchorObj.y;
     }
     this.col = false;
     this.numSides = this.x.length;
-    this.type = 'polygon';
+    this.type = 'polygonHitBox';
     this.maxX = Math.max(...this.x);
     this.minX = Math.min(...this.x);
     this.maxY = Math.max(...this.y);
     this.minY = Math.min(...this.y);
     this.x.push(this.x[0]);
     this.y.push(this.y[0]);
-    this.colType = colType;
-    this.ID = hitboxes.length;
     this.m = m;
-    this.anchorObj.addObject(this);
+    this.colType = colType;
+    this.ID = hitboxes.length - 1;
     this.colPriority = this.ID;
+    this.anchorObj.addObject(this);
   }
 
-  polygonHB.prototype.render = function(){
-    if(this.fit != 'object'){
-      if(this.anchorObj.type == 'circle' || 'image'){
-        this.moveTo(this.anchorObj.x - this.dx,this.anchorObj.y - this.dy);
-      }else if(this.anchorObj.type == 'polygon'){
-        this.moveTo(this.anchorObj.x[0] - this.dx,this.anchorObj.y[0] - this.dy);
-      }
-    }else{
-      this.moveTo(this.anchorObj.x[0],this.anchorObj.y[0]);
-    }
+  polygonHitBox.prototype.render = function(){
     if(this.colType != 'none'){
       checkObjects(this);
+      checkBoarders(this);
     }
     if(debug){
       ctx.beginPath();
       ctx.lineWidth = 1;
-      ctx.strokeStyle = hitBoxColor;
+      ctx.strokeStyle = debugColor;
       ctx.lineCap = 'round';
       ctx.moveTo(this.x[0],this.y[0]);
       for(var i = 1; i < this.x.length; i++){
         ctx.lineTo(this.x[i],this.y[i]);
       }
+      ctx.fillStyle = debugColor;
       ctx.stroke();
     }
   }
 
-  polygonHB.prototype.moveTo = function(x,y){
+  polygonHitBox.prototype.move = function(x,y){
+    for(var i = 0; i < this.numSides + 1; i++){
+      this.x[i] += x;
+      this.y[i] += y;
+    }
+    this.getMinMax();
+  }
+
+  polygonHitBox.prototype.moveTo = function(x,y){
     var dx = this.x[0] - x;
     var dy = this.y[0] - y;
     for(var i = 0; i < this.numSides + 1; i++){
@@ -386,79 +391,83 @@ function draw() {
     this.getMinMax();
   }
 
-  polygonHB.prototype.getMinMax = function(){
+  polygonHitBox.prototype.getMinMax = function(){
     this.maxX = Math.max(...this.x);
     this.minX = Math.min(...this.x);
     this.maxY = Math.max(...this.y);
     this.minY = Math.min(...this.y);
   }
 
-  polygonHB.prototype.delete = function() {
+  polygonHitBox.prototype.delete = function() {
     var indexToDelete = hitboxes.indexOf(this);
     hitboxes.splice(indexToDelete, 1);
     deleted += 1;
   }
 
-  var circleHB = function(anchorObj,fit,m,colType,x,y,r){
+  var circleHitBox = function(anchorObj,fit,m,colType,x,y,r){
+    this.fit = fit;
     this.anchorObj = anchorObj;
-    this.fit = fit; 
-    if(fit != 'object'){
+    if(this.fit){
+      this.x = anchorObj.x;
+      this.y = anchorObj.y;
+      this.r = anchorObj.r;
+      this.dx = 0;
+      this.dy = 0;
+    }else{
       this.x = x;
       this.y = y;
       this.r = r;
-      if(anchorObj.type == 'circle' || 'image'){
+      if(anchorObj.type == 'circle' || anchorObj.type == 'image'){
         this.dx = anchorObj.x - this.x;
         this.dy = anchorObj.y - this.y;
       }else if(anchorObj.type == 'polygon'){
         this.dx = anchorObj.x[0] - this.x;
         this.dy = anchorObj.y[0] - this.y;
       }
-    }else{
-      this.x = anchorObj.x;
-      this.y = anchorObj.y;
-      this.r = anchorObj.r;
     }
     this.col = false;
-    this.type = 'circle';
-    this.colType = colType;
-    this.ID = hitboxes.length;
+    this.type = 'circleHitBox';
     this.m = m;
-    this.anchorObj.addObject(this);
+    this.colType = colType;
+    this.maxX = this.x + this.r;
+    this.minX = this.x - this.r;
+    this.maxY = this.y + this.r;
+    this.minY = this.y - this.r;
+    this.ID = hitboxes.length - 1;
     this.colPriority = this.ID;
+    this.anchorObj.addObject(this);
   }
 
-  circleHB.prototype.render = function(){
-    if(this.fit != 'object'){
-      if(this.anchorObj.type == 'circle' || 'image'){
-        this.moveTo(this.anchorObj.x - this.dx,this.anchorObj.y - this.dy);
-      }else if(this.anchorObj.type == 'polygon'){
-        this.moveTo(this.anchorObj.x[0] - this.dx,this.anchorObj.y[0] - this.dy);
-      }
-    }else{
-      this.moveTo(this.anchorObj.x,this.anchorObj.y);
-    }
+  circleHitBox.prototype.render = function(){
     if(this.colType != 'none'){
       checkObjects(this);
+      checkBoarders(this);
     }
     if(debug){
-      drawCircle(this.x,this.y,this.r,hitBoxColor,false);
+      drawCircle(this.x,this.y,this.r,debugColor,false);
     }
   }
 
-  circleHB.prototype.moveTo = function(x,y){
+  circleHitBox.prototype.move = function(x,y){
+    this.x += x;
+    this.y += y;
+    this.getMinMax();
+  }
+
+  circleHitBox.prototype.moveTo = function(x,y){
     this.x = x;
     this.y = y;
     this.getMinMax();
   }
 
-  circleHB.prototype.getMinMax = function(){
+  circleHitBox.prototype.getMinMax = function(){
     this.maxX = this.x + this.r;
     this.minX = this.x - this.r;
     this.maxY = this.y + this.r;
     this.minY = this.y - this.r;
   }
 
-  circleHB.prototype.delete = function() {
+  circleHitBox.prototype.delete = function() {
     var indexToDelete = hitboxes.indexOf(this);
     hitboxes.splice(indexToDelete, 1);
     deleted += 1;
@@ -480,10 +489,10 @@ function draw() {
   }
 
   circle.prototype.render = function(){
-    drawCircle(this.x,this.y,this.r,this.c,this.fill);
     this.xVel += this.ax;
     this.yVel += this.ay;
     this.move(this.xVel,this.yVel);
+    drawCircle(this.x,this.y,this.r,this.c,this.fill);
   }
 
   circle.prototype.addObject = function(object){
@@ -493,37 +502,46 @@ function draw() {
   circle.prototype.moveTo = function(x,y){
     this.x = x;
     this.y = y;
+    for(var i = 0; i < this.objects.length; i++){
+      this.objects[i].moveTo(this.x - this.objects[i].dx,this.y - this.objects[i].dy);
+    }
   }
 
   circle.prototype.move = function(x,y){
     this.x += x;
     this.y += y;
+    for(var i = 0; i < this.objects.length; i++){
+      this.objects[i].moveTo(this.x - this.objects[i].dx,this.y - this.objects[i].dy);
+    }
   }
 
   circle.prototype.delete = function() {
+    for(var i = 0; i < this.objects.length; i++){
+      this.objects[i].delete();
+    }
     var indexToDelete = objects.indexOf(this);
     objects.splice(indexToDelete, 1);
     deleted += 1;
-    for(var i = 0; i < objects.length; i++){
-      objects[i].delete;
-    }
   }
 
   var polygon = function(x,y,c,layer){
     this.x = x;
     this.y = y;
-    this.c = c;
-    this.layer = layer;
+    this.c = c; 
+    this.fill = true;
     this.xVel = 0;
     this.yVel = 0;
     this.ax = 0;
     this.ay = 0;
-    this.fill = true;
     this.objects = [];
+    this.layer = layer;
     this.type = 'polygon';
   }
 
   polygon.prototype.render = function(){
+    this.xVel += this.ax;
+    this.yVel += this.ay;
+    this.move(this.xVel,this.yVel);
     ctx.beginPath();
     ctx.strokeStyle = this.c;
     ctx.fillStyle = this.c;
@@ -533,9 +551,6 @@ function draw() {
     } 
     ctx.fill();
     ctx.stroke();
-    this.xVel += this.ax;
-    this.yVel += this.ay;
-    this.move(this.xVel,this.yVel);
   }
 
   polygon.prototype.moveTo = function(x,y){
@@ -545,12 +560,18 @@ function draw() {
       this.x[i] -= dx;
       this.y[i] -= dy;
     }
+    for(var i = 0; i < this.objects.length; i++){
+      this.objects[i].moveTo(this.x[0] - this.objects[i].dx,this.y[0] - this.objects[i].dy);
+    }
   }
 
   polygon.prototype.move = function(x,y){
     for(var i = 0; i < this.x.length; i++){
       this.x[i] += x;
       this.y[i] += y;
+    }
+    for(var i = 0; i < this.objects.length; i++){
+      this.objects[i].moveTo(this.x[0] - this.objects[i].dx,this.y[0] - this.objects[i].dy);
     }
   }
 
@@ -559,12 +580,12 @@ function draw() {
   }
 
   polygon.prototype.delete = function() {
+    for(var i = 0; i < this.objects.length; i++){
+      this.objects[i].delete();
+    }
     var indexToDelete = objects.indexOf(this);
     objects.splice(indexToDelete, 1);
-    deleted += 1;
-    for(var i = 0; i < objects.length; i++){
-      objects[i].delete;
-    }
+    deleted += 1; 
   }
 
   var image = function(img,x,y,w,h,layer){
@@ -578,16 +599,15 @@ function draw() {
     this.yVel = 0;
     this.ax = 0;
     this.ay = 0;
-    this.fill = true;
     this.objects = [];
     this.type = 'image';
   }
 
   image.prototype.render = function(){
-    ctx.drawImage(this.img,this.x,this.y,this.w,this.h);
     this.xVel += this.ax;
     this.yVel += this.ay;
     this.move(this.xVel,this.yVel);
+    ctx.drawImage(this.img,this.x,this.y,this.w,this.h);
   }
 
   image.prototype.addObject = function(object){
@@ -597,11 +617,17 @@ function draw() {
   image.prototype.moveTo = function(x,y){
     this.x = x;
     this.y = y;
+    for(var i = 0; i < this.objects.length; i++){
+      this.objects[i].moveTo(this.x - this.objects[i].dx,this.y - this.objects[i].dy);
+    }
   }
 
   image.prototype.move = function(x,y){
     this.x += x;
     this.y += y;
+    for(var i = 0; i < this.objects.length; i++){
+      this.objects[i].moveTo(this.x - this.objects[i].dx,this.y - this.objects[i].dy);
+    }
   }
 
   image.prototype.delete = function() {
@@ -616,8 +642,35 @@ function draw() {
   function resetCollisions(){
     collisions = [];
     for(var i = 0; i < hitboxes.length; i++){
-      hitboxes[i].col = false;
+      hitboxes[i].col = -1;
     }
+  }
+
+  function checkBoarders(obj){
+      if(obj.minY < 0){
+        obj.move(0,-obj.minY);
+        if(obj.colType == 'bounce'){
+          obj.yVel *= -1;
+        }
+      }
+      if(obj.maxY > gameArea.height){
+        obj.move(0,gameArea.height - obj.maxY); 
+        if(obj.colType == 'bounce'){
+          obj.yVel *= -1;
+        }      
+      }
+      if(obj.maxX > gameArea.width){
+        obj.move(gameArea.width - obj.maxX,0); 
+        if(obj.colType == 'bounce'){
+          obj.xVel *= -1;
+        }      
+      }
+      if(obj.minX < 0){
+        obj.move(-obj.minX,0); 
+        if(obj.colType == 'bounce'){
+          obj.xVel *= -1;
+        }      
+      }
   }
 
   function renderObject(object) {
@@ -629,7 +682,7 @@ function draw() {
     }
   }
 
-  function regularPolygon(x,y,r,layer,n,dirz,c){
+  function regularPolygon(x,y,r,c,layer,n,dirz){
     var X = [];
     var Y = [];
     var a = 0;
@@ -641,31 +694,25 @@ function draw() {
     objects.push(new polygon(X,Y,c,layer));
   }
 
-  objects.push(new image(canada,300,300,300,100,0));
-  hitboxes.push(new polygonHB(objects[0],'none',1,'static',[300,600,600,300],[300,300,400,400]));
-  hitboxes.push(new circleHB(objects[0],'none',1,'static',450,350,100));
-  objects.push(new circle(55,55,25,'rgb(255,0,0)',0));
-  hitboxes.push(new circleHB(objects[1],'object',1,'static'));
-  objects.push(new polygon([100,200,150],[100,100,150],'rgb(255,0,0)',0));
-  hitboxes.push(new polygonHB(objects[2],'object',1,'move'));
-  objects.push(new circle(500,350,25,'rgb(255,0,0)',0));
-  hitboxes.push(new circleHB(objects[3],'object',1,'move'));
-  //objects.push(new polygon([300,600,600,300],[300,300,400,400],'rgb(255,0,0)',0));
-  
-  
-  objects.push(new polygon([300,400,375,325],[300,300,400,400],'rgb(255,0,0)',0));
-  hitboxes.push(new polygonHB(objects[4],'object',1,'move'));
-  
-  
-  
-  
+  //objects.push(new polygon([100,200,300,200],[100,100,200,250],'rgb(255,0,0)',0));
+  //objects.push(new image(canada,50,50,50,50,0));
+  //hitboxes.push(new circleHitBox(objects[0],false,1,'move',150,150,100));
+  //objects.push(new circle(300,300,50,'rgb(0,0,255)',0));
+  //hitboxes.push(new polygonHitBox(objects[1],false,1,'static',[200,300,400,300],[200,200,300,350]));
+  //hitboxes.push(new polygonHitBox(objects[0],false,1,'static',[200,300,400,300],[200,200,300,350]));
+  for(var i = 0; i < 100; i++){
+    objects.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),getRndInteger(10,20),'rgb(255,0,0)',0));
+    hitboxes.push(new circleHitBox(objects[objects.length - 1],true,1,'move'));
+    regularPolygon(gameArea.width/2,gameArea.height/2,getRndInteger(10,20),'rgb(255,0,0)',0,getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
+    hitboxes.push(new polygonHitBox(objects[objects.length - 1],true,1,'move'));
+  }
+
   function refresh(){
     draw.clearRect(0, 0, gameArea.width, gameArea.height);
     renderObject(objects);
     renderObject(hitboxes);
 
     //put collision based reactions here
-
     resetCollisions();
     moveObject(objects[0]);
     window.requestAnimationFrame(refresh);
