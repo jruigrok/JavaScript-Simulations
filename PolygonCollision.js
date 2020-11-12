@@ -278,6 +278,8 @@ function draw() {
     this.overlap = overlap;
     this.cx = cx;
     this.cy = cy;
+    this.ob1.collisions.push(this);
+    this.ob2.collisions.push(this);
   }
 
   collision.prototype.resolve = function(){
@@ -361,6 +363,7 @@ function draw() {
     this.ID = hitboxes.length - 1;
     this.colPriority = this.ID;
     this.anchorObj.addObject(this);
+    this.collision = [];
   }
 
   polygonHitBox.prototype.render = function(){
@@ -445,6 +448,7 @@ function draw() {
     this.ID = hitboxes.length - 1;
     this.colPriority = this.ID;
     this.anchorObj.addObject(this);
+    this.collision = [];
   }
 
   circleHitBox.prototype.render = function(){
@@ -652,6 +656,7 @@ function draw() {
     collisions = [];
     for(var i = 0; i < hitboxes.length; i++){
       hitboxes[i].col = -1;
+      hitboxes[i].collisions = [];
     }
   }
 
