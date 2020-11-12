@@ -19,12 +19,12 @@ SOFTWARE.
 
 var deleted = 0;
 var speed = 2;
-var colPresicion = 0.4;
+var colPresicion = 0.05;
 var hitboxes = [];
 var test = true;
 var pressedKeys = [];
 var collisions = [];
-var debug = true;
+var debug = false;
 var debugColor = 'rgb(0,255,0)';
 var objects = [];
 var canada = new Image();
@@ -65,6 +65,15 @@ function draw() {
 
   function getRndInteger(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function generateRandomColor() {
+    var letters = '0123456789ABCDEF';
+    var color = '#';
+    for (var i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
   }
 
   function drawCircle(x, y, r, c,fill) {
@@ -647,30 +656,30 @@ function draw() {
   }
 
   function checkBoarders(obj){
-      if(obj.minY < 0){
-        obj.move(0,-obj.minY);
-        if(obj.colType == 'bounce'){
-          obj.yVel *= -1;
-        }
+    if(obj.minY < 0){
+      obj.anchorObj.move(0,-obj.minY);
+      if(obj.colType == 'bounce'){
+        obj.anchorObj.yVel *= -1;
       }
-      if(obj.maxY > gameArea.height){
-        obj.move(0,gameArea.height - obj.maxY); 
-        if(obj.colType == 'bounce'){
-          obj.yVel *= -1;
-        }      
-      }
-      if(obj.maxX > gameArea.width){
-        obj.move(gameArea.width - obj.maxX,0); 
-        if(obj.colType == 'bounce'){
-          obj.xVel *= -1;
-        }      
-      }
-      if(obj.minX < 0){
-        obj.move(-obj.minX,0); 
-        if(obj.colType == 'bounce'){
-          obj.xVel *= -1;
-        }      
-      }
+    }
+    if(obj.maxY > gameArea.height){
+      obj.anchorObj.move(0,gameArea.height - obj.maxY); 
+      if(obj.colType == 'bounce'){
+        obj.anchorObj.yVel *= -1;
+      }      
+    }
+    if(obj.maxX > gameArea.width){
+      obj.anchorObj.move(gameArea.width - obj.maxX,0); 
+      if(obj.colType == 'bounce'){
+        obj.anchorObj.xVel *= -1;
+      }      
+    }
+    if(obj.minX < 0){
+      obj.anchorObj.move(-obj.minX,0); 
+      if(obj.colType == 'bounce'){
+        obj.anchorObj.xVel *= -1;
+      }      
+    }
   }
 
   function renderObject(object) {
@@ -694,25 +703,27 @@ function draw() {
     objects.push(new polygon(X,Y,c,layer));
   }
 
-  //objects.push(new polygon([100,200,300,200],[100,100,200,250],'rgb(255,0,0)',0));
-  //objects.push(new image(canada,50,50,50,50,0));
-  //hitboxes.push(new circleHitBox(objects[0],false,1,'move',150,150,100));
-  //objects.push(new circle(300,300,50,'rgb(0,0,255)',0));
-  //hitboxes.push(new polygonHitBox(objects[1],false,1,'static',[200,300,400,300],[200,200,300,350]));
-  //hitboxes.push(new polygonHitBox(objects[0],false,1,'static',[200,300,400,300],[200,200,300,350]));
+  //objects.push(new circle(100,100,50,'rgb(0,0,255)',0));
+  //hitboxes.push(new circleHitBox(objects[0],true,1,'static'));
   for(var i = 0; i < 100; i++){
-    objects.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),getRndInteger(10,20),'rgb(255,0,0)',0));
-    hitboxes.push(new circleHitBox(objects[objects.length - 1],true,1,'move'));
-    regularPolygon(gameArea.width/2,gameArea.height/2,getRndInteger(10,20),'rgb(255,0,0)',0,getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
-    hitboxes.push(new polygonHitBox(objects[objects.length - 1],true,1,'move'));
+    objects.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),getRndInteger(10,20),generateRandomColor(),0));
+    hitboxes.push(new circleHitBox(objects[objects.length - 1],true,1,'bounce'));
+    objects[objects.length - 1].xVel = getRndInteger(-2,2);
+    objects[objects.length - 1].yVel = getRndInteger(-2,2);
+    regularPolygon(gameArea.width/2,gameArea.height/2,getRndInteger(10,20),generateRandomColor(),0,getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
+    hitboxes.push(new polygonHitBox(objects[objects.length - 1],true,1,'bounce'));
+    objects[objects.length - 1].xVel = getRndInteger(-2,2);
+    objects[objects.length - 1].yVel = getRndInteger(-2,2);
   }
 
   function refresh(){
     draw.clearRect(0, 0, gameArea.width, gameArea.height);
     renderObject(objects);
     renderObject(hitboxes);
-
+    
     //put collision based reactions here
+    
+    console.log(collisions.length);
     resetCollisions();
     moveObject(objects[0]);
     window.requestAnimationFrame(refresh);
