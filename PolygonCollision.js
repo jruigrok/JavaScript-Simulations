@@ -24,11 +24,19 @@ var hitboxes = [];
 var test = true;
 var pressedKeys = [];
 var collisions = [];
-var debug = false;
+var debug = true;
 var debugColor = 'rgb(0,255,0)';
 var objects = [];
 var canada = new Image();
 canada.src = 'Images/Among_Us_Character.png';
+var mouseDown = false;
+var mouseX = 0;
+var mouseY = 0;
+var click = false;
+var Xinfo = [];
+var Yinfo = [];
+var mode = 'polygon';
+var r = 1;
 
 function draw() {
   gameArea.width = window.innerWidth;
@@ -60,6 +68,24 @@ function draw() {
     }
   }
 
+  document.body.onmousedown = function() {
+    ++mouseDown;
+  }
+  document.body.onmouseup = function() {
+    --mouseDown;
+    click = false;
+  }
+
+  function getMousePosition(canvas, event) {
+    let rect = gameArea.getBoundingClientRect();
+    mouseX = event.clientX - rect.left;
+    mouseY = event.clientY - rect.top;
+  }
+
+  gameArea.addEventListener('mousemove', function(e) {
+    getMousePosition('gameArea', e);
+  });
+
   window.onkeyup = function(e) { pressedKeys[e.keyCode] = false; }
   window.onkeydown = function(e) { pressedKeys[e.keyCode] = true; }
 
@@ -71,7 +97,7 @@ function draw() {
     var letters = '0123456789ABCDEF';
     var color = '#';
     for (var i = 0; i < 6; i++) {
-      color += letters[Math.floor(Math.random() * 16)];
+      color += letters[Math.floor(Math.random()*16)];
     }
     return color;
   }
@@ -86,6 +112,91 @@ function draw() {
       ctx.fill();
     }
     ctx.stroke();
+  }
+
+  function drawPolygon(x,y,c,fill){
+    ctx.beginPath();
+    ctx.strokeStyle = c;
+    ctx.moveTo(x[0],y[0]);
+    for(var i = 1; i < x.length; i++){
+      ctx.lineTo(x[i],y[i]);
+    }
+    if(fill){
+      ctx.fillStyle = c;
+      ctx.fill();
+    }
+    ctx.stroke();
+  }
+
+  function debug(){
+    if(debug){
+      if(!click && mouseDown){
+        click++;
+        if(mode == 'polygon'){
+          Xinfo.push(mouseX);
+          Yinfo.push(mouseY);
+        }else{
+          Xinfo = mouseX;
+          Yinfo = mouseY;
+        }        
+      }
+      if(pressedKeys[32]){
+        if(mode == 'polygon'){
+          console.log('[' + Xinfo + ']' + ',' + '[' + Yinfo + ']');
+        }else{
+          console.log(Xinfo + ','+ Yinfo + ',' + r);
+        }
+        pressedKeys[32] = false;
+      }
+      if(pressedKeys[8]){
+        if(mode == 'polygon'){
+          Xinfo = [];
+          Yinfo = [];
+        }else{
+          Xinfo = 0;
+          Yinfo = 0;
+        }
+        r = 1;
+        pressedKeys[8] = false;
+      }
+      if(pressedKeys[67]){
+        Xinfo = undefined;
+        Yinfo = undefined;
+        r = 1;
+        mode = 'circle';
+        pressedKeys[67] = false;
+      }
+      if(pressedKeys[80]){
+        Xinfo = [];
+        Yinfo = [];
+        mode = 'polygon';
+        pressedKeys[80] = false;
+      }
+      if(pressedKeys[187]){
+        r++;
+        pressedKeys[187] = false;
+      }
+      if(pressedKeys[189] && r > 1){
+        r--;
+        pressedKeys[189] = false;
+      }
+      if(pressedKeys[13]){
+        console.log('X: ' + mouseX + ' Y: ' + mouseY);
+        pressedKeys[13] = false;
+      }
+      drawCircle(mouseX,mouseY,5,debugColor,mouseDown);
+      if(mode == 'polygon'){
+        if(Xinfo.length > 1){
+          var X = Xinfo;
+          var Y = Yinfo;
+          drawPolygon(X,Y,debugColor,false);
+        }
+      }else{
+        if(!isNaN(Xinfo) && !isNaN(Yinfo)){
+          drawCircle(Xinfo,Yinfo,r,debugColor,false);
+        }
+      }
+    }
   }
 
   function checkObjects(obj){
@@ -278,8 +389,8 @@ function draw() {
     this.overlap = overlap;
     this.cx = cx;
     this.cy = cy;
-    this.ob1.collisions.push(this);
-    this.ob2.collisions.push(this);
+    this.ob1.collisions.push(new collisionInfo(ob1,ob2,cx,-cy));
+    this.ob2.collisions.push(new collisionInfo(ob2,ob1,-cx,cy));
   }
 
   collision.prototype.resolve = function(){
@@ -330,6 +441,13 @@ function draw() {
     deleted += 1;
   }
 
+  var collisionInfo = function(obj,obj2,ax,ay){
+    this.obj = obj;
+    this.obj2 = obj2;
+    this.ax = ax;
+    this.ay = ay;
+  }
+
   var polygonHitBox = function(anchorObj,fit,m,colType,x,y){
     this.fit = fit;
     this.anchorObj = anchorObj;
@@ -363,7 +481,7 @@ function draw() {
     this.ID = hitboxes.length - 1;
     this.colPriority = this.ID;
     this.anchorObj.addObject(this);
-    this.collision = [];
+    this.collisions = [];
   }
 
   polygonHitBox.prototype.render = function(){
@@ -372,16 +490,7 @@ function draw() {
       checkBoarders(this);
     }
     if(debug){
-      ctx.beginPath();
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = debugColor;
-      ctx.lineCap = 'round';
-      ctx.moveTo(this.x[0],this.y[0]);
-      for(var i = 1; i < this.x.length; i++){
-        ctx.lineTo(this.x[i],this.y[i]);
-      }
-      ctx.fillStyle = debugColor;
-      ctx.stroke();
+      drawPolygon(this.x,this.y,this.c,this.fill);
     }
   }
 
@@ -448,7 +557,7 @@ function draw() {
     this.ID = hitboxes.length - 1;
     this.colPriority = this.ID;
     this.anchorObj.addObject(this);
-    this.collision = [];
+    this.collisions = [];
   }
 
   circleHitBox.prototype.render = function(){
@@ -555,15 +664,7 @@ function draw() {
     this.xVel += this.ax;
     this.yVel += this.ay;
     this.move(this.xVel,this.yVel);
-    ctx.beginPath();
-    ctx.strokeStyle = this.c;
-    ctx.fillStyle = this.c;
-    ctx.moveTo(this.x[0],this.y[0]);
-    for(var i = 1; i < this.x.length; i++){
-      ctx.lineTo(this.x[i],this.y[i]);
-    } 
-    ctx.fill();
-    ctx.stroke();
+    drawPolygon(this.x,this.y,this.c,this.fill);
   }
 
   polygon.prototype.moveTo = function(x,y){
@@ -710,13 +811,15 @@ function draw() {
 
   //objects.push(new circle(100,100,50,'rgb(0,0,255)',0));
   //hitboxes.push(new circleHitBox(objects[0],true,1,'static'));
-  for(var i = 0; i < 100; i++){
-    objects.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),getRndInteger(10,20),generateRandomColor(),0));
-    hitboxes.push(new circleHitBox(objects[objects.length - 1],true,1,'bounce'));
+  for(var i = 0; i < 20; i++){
+    var r = getRndInteger(25,50);
+    objects.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),r,generateRandomColor(),0));
+    hitboxes.push(new circleHitBox(objects[objects.length - 1],true,Math.pow(r,2),'bounce'));
     objects[objects.length - 1].xVel = getRndInteger(-2,2);
     objects[objects.length - 1].yVel = getRndInteger(-2,2);
-    regularPolygon(gameArea.width/2,gameArea.height/2,getRndInteger(10,20),generateRandomColor(),0,getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
-    hitboxes.push(new polygonHitBox(objects[objects.length - 1],true,1,'bounce'));
+    r = getRndInteger(25,50);
+    regularPolygon(gameArea.width/2,gameArea.height/2,r,generateRandomColor(),0,getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
+    hitboxes.push(new polygonHitBox(objects[objects.length - 1],true,Math.pow(r,2),'bounce'));
     objects[objects.length - 1].xVel = getRndInteger(-2,2);
     objects[objects.length - 1].yVel = getRndInteger(-2,2);
   }
@@ -725,12 +828,12 @@ function draw() {
     draw.clearRect(0, 0, gameArea.width, gameArea.height);
     renderObject(objects);
     renderObject(hitboxes);
-    
+    debug();
+
     //put collision based reactions here
-    
-    console.log(collisions.length);
+
     resetCollisions();
-    moveObject(objects[0]);
+    //moveObject(objects[0]);
     window.requestAnimationFrame(refresh);
   }
   window.requestAnimationFrame(refresh);
