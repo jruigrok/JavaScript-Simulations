@@ -21,10 +21,9 @@ var deleted = 0;
 var speed = 2;
 var colPresicion = 0.05;
 var hitboxes = [];
-var test = true;
 var pressedKeys = [];
 var collisions = [];
-var debug = true;
+var debugMode = true;
 var debugColor = 'rgb(0,255,0)';
 var objects = [];
 var canada = new Image();
@@ -37,6 +36,7 @@ var Xinfo = [];
 var Yinfo = [];
 var mode = 'polygon';
 var r = 1;
+var debugObjects = [];
 
 function draw() {
   gameArea.width = window.innerWidth;
@@ -129,7 +129,7 @@ function draw() {
   }
 
   function debug(){
-    if(debug){
+    if(debugMode){
       if(!click && mouseDown){
         click++;
         if(mode == 'polygon'){
@@ -141,22 +141,36 @@ function draw() {
         }        
       }
       if(pressedKeys[32]){
-        if(mode == 'polygon'){
-          console.log('[' + Xinfo + ']' + ',' + '[' + Yinfo + ']');
+        if(pressedKeys[17]){
+          for(var i = 0; i < debugObjects.length; i++){
+            if(debugObjects[i].type == 'debugPolygon'){
+              console.log('[' + debugObjects[i].x + ']' + ',' + '[' + debugObjects[i].y + ']');
+            }else{
+              console.log(debugObjects[i].x + ','+ debugObjects[i].y + ',' + debugObjects[i].r);
+            } 
+          }
         }else{
-          console.log(Xinfo + ','+ Yinfo + ',' + r);
+          if(mode == 'polygon'){
+            console.log('[' + Xinfo + ']' + ',' + '[' + Yinfo + ']');
+          }else{
+            console.log(Xinfo + ','+ Yinfo + ',' + r);
+          }
         }
         pressedKeys[32] = false;
       }
       if(pressedKeys[8]){
-        if(mode == 'polygon'){
-          Xinfo = [];
-          Yinfo = [];
+        if(pressedKeys[17]){
+          debugObjects.pop();
         }else{
-          Xinfo = 0;
-          Yinfo = 0;
+          if(mode == 'polygon'){
+            Xinfo = [];
+            Yinfo = [];
+          }else{
+            Xinfo = 0;
+            Yinfo = 0;
+          }
+          r = 1;
         }
-        r = 1;
         pressedKeys[8] = false;
       }
       if(pressedKeys[67]){
@@ -184,12 +198,37 @@ function draw() {
         console.log('X: ' + mouseX + ' Y: ' + mouseY);
         pressedKeys[13] = false;
       }
+      if(pressedKeys[16]){
+        if(mode == 'polygon'){
+          if(!isNaN(Xinfo[0])){
+            if(Xinfo.length > 2){
+              debugObjects.push(new debugPolygon(Xinfo,Yinfo));
+              pressedKeys[8] = true;
+            }else{
+              console.log('you must have 3 or more points');
+            }
+          }else{
+            console.log('no values entered');
+          }
+        }
+        if(mode == 'circle'){
+          if(!isNaN(Xinfo)){
+            debugObjects.push(new debugCircle(Xinfo,Yinfo,r));
+            pressedKeys[8] = true;
+          }else{
+            console.log('no values entered');
+          }
+        }
+        pressedKeys[16] = false;
+      }
       drawCircle(mouseX,mouseY,5,debugColor,mouseDown);
       if(mode == 'polygon'){
         if(Xinfo.length > 1){
-          var X = Xinfo;
-          var Y = Yinfo;
-          drawPolygon(X,Y,debugColor,false);
+          Xinfo.push(Xinfo[0]);
+          Yinfo.push(Yinfo[0]);
+          drawPolygon(Xinfo,Yinfo,debugColor,false);
+          Xinfo.pop();
+          Yinfo.pop();
         }
       }else{
         if(!isNaN(Xinfo) && !isNaN(Yinfo)){
@@ -197,6 +236,43 @@ function draw() {
         }
       }
     }
+  }
+
+  var debugPolygon = function(x,y){
+    this.x = x;
+    this.y = y;
+    this.type = 'debugPolygon';
+  }
+
+  debugPolygon.prototype.render = function(){
+    this.x.push(this.x[0]);
+    this.y.push(this.y[0]);
+    drawPolygon(this.x,this.y,debugColor,false);
+    this.x.pop();
+    this.y.pop();
+  }
+
+  debugPolygon.prototype.delete = function() {
+    var indexToDelete = debugPolygons.indexOf(this);
+    debugPolygons.splice(indexToDelete, 1);
+    deleted += 1;
+  }
+
+  var debugCircle = function(x,y,r){
+    this.x = x;
+    this.y = y;
+    this.r = r;
+    this.type = 'debugCircle';
+  }
+
+  debugCircle.prototype.render = function(){
+    drawCircle(this.x,this.y,this.r,debugColor,false);
+  }
+
+  debugCircle.prototype.delete = function() {
+    var indexToDelete = debugCircles.indexOf(this);
+    debugCircles.splice(indexToDelete, 1);
+    deleted += 1;
   }
 
   function checkObjects(obj){
@@ -452,8 +528,13 @@ function draw() {
     this.fit = fit;
     this.anchorObj = anchorObj;
     if(this.fit){
-      this.x = anchorObj.x;
-      this.y = anchorObj.y;41
+      if(anchorObj.type == 'image'){
+        this.x = [anchorObj.x,anchorObj.x + anchorObj.w,anchorObj.x + anchorObj.w,anchorObj.x];
+        this.y = [anchorObj.y,anchorObj.y,anchorObj.y + anchorObj.h,anchorObj.y + anchorObj.h];
+      }else{
+        this.x = anchorObj.x;
+        this.y = anchorObj.y;
+      }
       this.dx = 0;
       this.dy = 0;
     }else{
@@ -489,8 +570,8 @@ function draw() {
       checkObjects(this);
       checkBoarders(this);
     }
-    if(debug){
-      drawPolygon(this.x,this.y,this.c,this.fill);
+    if(debugMode){
+      drawPolygon(this.x,this.y,debugColor,this.fill);
     }
   }
 
@@ -565,7 +646,7 @@ function draw() {
       checkObjects(this);
       checkBoarders(this);
     }
-    if(debug){
+    if(debugMode){
       drawCircle(this.x,this.y,this.r,debugColor,false);
     }
   }
@@ -809,9 +890,16 @@ function draw() {
     objects.push(new polygon(X,Y,c,layer));
   }
 
-  //objects.push(new circle(100,100,50,'rgb(0,0,255)',0));
-  //hitboxes.push(new circleHitBox(objects[0],true,1,'static'));
-  for(var i = 0; i < 20; i++){
+  objects.push(new image(canada,50,50,100,300,0));
+  hitboxes.push(new polygonHitBox(objects[0],false,1,'static',[139,70,69,72,81,94,119,129,134,140],[292,291,204,130,65,53,51,68,91,176]));
+  hitboxes.push(new polygonHitBox(objects[0],false,1,'static',[69,72,59,51,51,54,56,63],[289,132,136,162,218,265,283,290]));
+  hitboxes.push(new polygonHitBox(objects[0],false,1,'static',[71,73,79,90,99,103,104,100],[290,333,345,349,343,333,295,278]));
+  hitboxes.push(new polygonHitBox(objects[0],false,1,'static',[112,112,120,129,138,139,139],[293,326,335,335,325,295,281]));
+  hitboxes.push(new circleHitBox(objects[0],false,1,'static',112,126,35));
+  hitboxes.push(new circleHitBox(objects[0],false,1,'static',112,156,35));
+  objects.push(new circle(300,300,50,'rgb(0,0,255)',0));
+  hitboxes.push(new circleHitBox(objects[1],true,1,'move'));
+  /*&for(var i = 0; i < 20; i++){
     var r = getRndInteger(25,50);
     objects.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),r,generateRandomColor(),0));
     hitboxes.push(new circleHitBox(objects[objects.length - 1],true,Math.pow(r,2),'bounce'));
@@ -822,18 +910,20 @@ function draw() {
     hitboxes.push(new polygonHitBox(objects[objects.length - 1],true,Math.pow(r,2),'bounce'));
     objects[objects.length - 1].xVel = getRndInteger(-2,2);
     objects[objects.length - 1].yVel = getRndInteger(-2,2);
-  }
+  }*/
 
   function refresh(){
     draw.clearRect(0, 0, gameArea.width, gameArea.height);
+    
     renderObject(objects);
     renderObject(hitboxes);
+    renderObject(debugObjects);
+    moveObject(objects[0]);
     debug();
 
     //put collision based reactions here
 
     resetCollisions();
-    //moveObject(objects[0]);
     window.requestAnimationFrame(refresh);
   }
   window.requestAnimationFrame(refresh);
