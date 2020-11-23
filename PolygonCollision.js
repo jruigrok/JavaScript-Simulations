@@ -18,12 +18,12 @@ SOFTWARE.
 */
 
 var deleted = 0;
-var speed = 2;
+var speed = 100;
 var colPresicion = 0.05;
 var hitboxes = [];
 var pressedKeys = [];
 var collisions = [];
-var debugMode = true;
+var debugMode = false;
 var debugColor = 'rgb(0,255,0)';
 var objects = [];
 var canada = new Image();
@@ -37,6 +37,7 @@ var Yinfo = [];
 var mode = 'polygon';
 var r = 1;
 var debugObjects = [];
+var t = 0;
 
 function draw() {
   gameArea.width = window.innerWidth;
@@ -235,6 +236,9 @@ function draw() {
           drawCircle(Xinfo,Yinfo,r,debugColor,false);
         }
       }
+      for(var i = 0; i < hitboxes.length; i++){
+        hitboxes[i].drawBounds();
+      }
     }
   }
 
@@ -298,7 +302,6 @@ function draw() {
         collisions.push(new collision(ob1,ob2,s,-nx,ny));
         collisions[collisions.length - 1].resolve();
       }
-
     }else if(ob1.type == 'polygonHitBox' && ob2.type == 'polygonHitBox'){
       var smallestOverlap = Infinity;
       var cx = 0;
@@ -351,8 +354,7 @@ function draw() {
         collisions.push(new collision(ob1,ob2,smallestOverlap,cx,cy));
         collisions[collisions.length - 1].resolve();
       }
-    }
-    if((ob1.type == 'circleHitBox' && ob2.type == 'polygonHitBox') || (ob2.type == 'circleHitBox' && ob1.type == 'polygonHitBox')){
+    }else if((ob1.type == 'circleHitBox' && ob2.type == 'polygonHitBox') || (ob2.type == 'circleHitBox' && ob1.type == 'polygonHitBox')){
       var col = true;
       var closestX = -Infinity;
       var closestY = -Infinity;
@@ -456,6 +458,73 @@ function draw() {
           collisions[collisions.length - 1].resolve();
         }
       }
+    }else if(ob1.type == 'pointHitBox' && ob2.type == 'circleHitBox' || ob2.type == 'pointHitBox' && ob1.type == 'circleHitBox'){
+      if(ob1.type == 'circleHitBox'){
+        var Circle = ob1;
+        var Point = ob2;
+      }else{
+        var Circle = ob2;
+        var Point = ob1;
+      }
+      var dx = Circle.x - Point.x;
+      var dy = Circle.y - Point.y;
+      var d = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
+      if(d + colPresicion < Circle.r){
+        var s = (Circle.r) - d;
+        var nx = dx/d;
+        var ny = dy/d;
+        collisions.push(new collision(Point,Circle,s,-nx,ny));
+        collisions[collisions.length - 1].resolve();
+      }
+    }else if(ob1.type == 'pointHitBox' && ob2.type == 'polygonHitBox' || ob2.type == 'pointHitBox' && ob1.type == 'polygonHitBox'){
+      var col = true;
+      var closestPolygon = 0;
+      var d = 0;
+      var closestD = Infinity;
+      var cx = 0;
+      var cy = 0;
+      if(ob1.type == 'pointHitBox'){
+        var Point = ob1;
+        var Polygon = ob2;
+      }else{
+        var Point = ob2;
+        var Polygon = ob1;
+      }
+      for(var i = 0; i < Polygon.numSides; i++){
+        var dy = (gameArea.height - Polygon.y[i]) - (gameArea.height - Polygon.y[i + 1]);
+        var dx = Polygon.x[i] - Polygon.x[i + 1];
+        var s = dy / dx;
+        var a = Math.atan(-1/s);
+        var newPolygonX = [];
+        var ax = Math.cos(a);
+        var ay = Math.sin(a);
+        var newPointX = (Point.x * ax) - (Point.y * ay);
+        for(var j = 0; j < Polygon.numSides; j++){
+          newPolygonX[j] = (Polygon.x[j] * ax) - (Polygon.y[j] * ay);
+        }
+        var PolygonGX = Math.max(...newPolygonX);
+        var PolygonSX = Math.min(...newPolygonX);
+        if(newPointX > PolygonGX || newPointX < PolygonSX){
+          col = false;
+          break;
+        }else{
+          if(Math.abs(newPointX - PolygonGX) > Math.abs(newPointX - PolygonSX)){
+            closestPolygon = PolygonSX;
+          }else{
+            closestPolygon = PolygonGX;
+          }
+          d = closestPolygon - newPointX;
+          if(Math.abs(d) < Math.abs(closestD)){
+            closestD = d;
+            cx = -ax;
+            cy = -ay;
+          }
+        } 
+      }
+      if(col){
+        collisions.push(new collision(Polygon,Point,closestD,cx,cy));
+        collisions[collisions.length - 1].resolve();
+      }
     }
   }
 
@@ -540,7 +609,7 @@ function draw() {
     }else{
       this.x = x;
       this.y = y;
-      if(anchorObj.type == 'circle' || anchorObj.type == 'image'){
+      if(anchorObj.type == 'circle' || anchorObj.type == 'image' || anchorObj.type == 'blank'){
         this.dx = anchorObj.x - this.x[0];
         this.dy = anchorObj.y - this.y[0];
       }else if(anchorObj.type == 'polygon'){
@@ -568,11 +637,11 @@ function draw() {
   polygonHitBox.prototype.render = function(){
     if(this.colType != 'none'){
       checkObjects(this);
-      checkBoarders(this);
     }
-    if(debugMode){
-      drawPolygon(this.x,this.y,debugColor,this.fill);
-    }
+  }
+
+  polygonHitBox.prototype.drawBounds = function(){
+    drawPolygon(this.x,this.y,debugColor,this.fill);
   }
 
   polygonHitBox.prototype.move = function(x,y){
@@ -619,7 +688,7 @@ function draw() {
       this.x = x;
       this.y = y;
       this.r = r;
-      if(anchorObj.type == 'circle' || anchorObj.type == 'image'){
+      if(anchorObj.type == 'circle' || anchorObj.type == 'image' || anchorObj.type == 'blank'){
         this.dx = anchorObj.x - this.x;
         this.dy = anchorObj.y - this.y;
       }else if(anchorObj.type == 'polygon'){
@@ -644,11 +713,11 @@ function draw() {
   circleHitBox.prototype.render = function(){
     if(this.colType != 'none'){
       checkObjects(this);
-      checkBoarders(this);
     }
-    if(debugMode){
-      drawCircle(this.x,this.y,this.r,debugColor,false);
-    }
+  }
+
+  circleHitBox.prototype.drawBounds = function(){
+    drawCircle(this.x,this.y,this.r,debugColor,false);
   }
 
   circleHitBox.prototype.move = function(x,y){
@@ -676,6 +745,72 @@ function draw() {
     deleted += 1;
   }
 
+  var pointHitBox = function(anchorObj,fit,m,colType,x,y){
+    this.fit = fit;
+    this.anchorObj = anchorObj;
+    this.x = x;
+    this.y = y;
+    if(this.fit){
+      this.x = anchorObj.x;
+      this.y = anchorObj.y;
+      this.dx = 0;
+      this.dy = 0;
+    }else{
+      if(anchorObj.type == 'circle' || anchorObj.type == 'image' || anchorObj.type == 'blank'){
+        this.dx = anchorObj.x - this.x;
+        this.dy = anchorObj.y - this.y;
+      }else if(anchorObj.type == 'polygon'){
+        this.dx = anchorObj.x[0] - this.x;
+        this.dy = anchorObj.y[0] - this.y;
+      }
+    }
+    this.maxX = this.x;
+    this.minX = this.x;
+    this.maxY = this.y;
+    this.minY = this.y;
+    this.col = false;
+    this.type = 'pointHitBox';
+    this.m = m;
+    this.colType = colType;
+    this.ID = hitboxes.length - 1;
+    this.colPriority = this.ID;
+    this.anchorObj.addObject(this);
+    this.collisions = [];
+  }
+
+  pointHitBox.prototype.render = function(){
+    if(this.colType != 'none'){
+      checkObjects(this);
+    }
+  }
+
+  pointHitBox.prototype.drawBounds = function(){
+    ctx.beginPath();
+    ctx.fillStyle = debugColor;
+    ctx.fillRect(this.x,this.y,1,1); 
+    ctx.stroke();
+    drawCircle(this.x,this.y,5,debugColor,false);
+  }
+
+  pointHitBox.prototype.move = function(x,y){
+    this.x += x;
+    this.y += y;
+    this.getMinMax();
+  }
+
+  pointHitBox.prototype.moveTo = function(x,y){
+    this.x = x;
+    this.y = y;
+    this.getMinMax();
+  }
+
+  pointHitBox.prototype.getMinMax = function(){
+    this.maxX = this.x;
+    this.minX = this.x;
+    this.maxY = this.y;
+    this.minY = this.y;
+  }
+
   var circle = function(x,y,r,c,layer){
     this.x = x;
     this.y = y;
@@ -689,12 +824,15 @@ function draw() {
     this.objects = [];
     this.layer = layer;
     this.type = 'circle';
+    this.timeChange = t;
   }
 
   circle.prototype.render = function(){
-    this.xVel += this.ax;
-    this.yVel += this.ay;
-    this.move(this.xVel,this.yVel);
+    var time = t - this.timeChange;
+    this.timeChange = t;
+    this.xVel += this.ax * time/100;
+    this.yVel += this.ay * time/100;
+    this.move(this.xVel * time/100,this.yVel * time/100);
     drawCircle(this.x,this.y,this.r,this.c,this.fill);
   }
 
@@ -739,12 +877,15 @@ function draw() {
     this.objects = [];
     this.layer = layer;
     this.type = 'polygon';
+    this.timeChange = t;
   }
 
   polygon.prototype.render = function(){
-    this.xVel += this.ax;
-    this.yVel += this.ay;
-    this.move(this.xVel,this.yVel);
+    var time = t - this.timeChange;
+    this.timeChange = t;
+    this.xVel += this.ax * time/100;
+    this.yVel += this.ay * time/100;
+    this.move(this.xVel * time/100,this.yVel * time/100);
     drawPolygon(this.x,this.y,this.c,this.fill);
   }
 
@@ -796,12 +937,15 @@ function draw() {
     this.ay = 0;
     this.objects = [];
     this.type = 'image';
+    this.timeChange = t;
   }
 
   image.prototype.render = function(){
-    this.xVel += this.ax;
-    this.yVel += this.ay;
-    this.move(this.xVel,this.yVel);
+    var time = t - this.timeChange;
+    this.timeChange = t;
+    this.xVel += this.ax * time/100;
+    this.yVel += this.ay * time/100;
+    this.move(this.xVel * time/100,this.yVel * time/100);
     ctx.drawImage(this.img,this.x,this.y,this.w,this.h);
   }
 
@@ -834,38 +978,62 @@ function draw() {
     }
   }
 
+  var blank = function(x,y,layer){
+    this.x = x;
+    this.y = y;
+    this.layer = layer;
+    this.fill = true;
+    this.xVel = 0;
+    this.yVel = 0;
+    this.ax = 0;
+    this.ay = 0;
+    this.objects = [];
+    this.type = 'blank';
+    this.timeChange = t;
+  }
+
+  blank.prototype.render = function(){
+    var time = t - this.timeChange;
+    this.timeChange = t;
+    this.xVel += this.ax * time/100;
+    this.yVel += this.ay * time/100;
+    this.move(this.xVel * time/100,this.yVel * time/100);
+  }
+
+  blank.prototype.addObject = function(object){
+    this.objects.push(object);
+  }
+
+  blank.prototype.moveTo = function(x,y){
+    this.x = x;
+    this.y = y;
+    for(var i = 0; i < this.objects.length; i++){
+      this.objects[i].moveTo(this.x - this.objects[i].dx,this.y - this.objects[i].dy);
+    }
+  }
+
+  blank.prototype.move = function(x,y){
+    this.x += x;
+    this.y += y;
+    for(var i = 0; i < this.objects.length; i++){
+      this.objects[i].moveTo(this.x - this.objects[i].dx,this.y - this.objects[i].dy);
+    }
+  }
+
+  blank.prototype.delete = function() {
+    for(var i = 0; i < this.objects.length; i++){
+      this.objects[i].delete();
+    }
+    var indexToDelete = objects.indexOf(this);
+    objects.splice(indexToDelete, 1);
+    deleted += 1;
+  }
+
   function resetCollisions(){
     collisions = [];
     for(var i = 0; i < hitboxes.length; i++){
       hitboxes[i].col = -1;
       hitboxes[i].collisions = [];
-    }
-  }
-
-  function checkBoarders(obj){
-    if(obj.minY < 0){
-      obj.anchorObj.move(0,-obj.minY);
-      if(obj.colType == 'bounce'){
-        obj.anchorObj.yVel *= -1;
-      }
-    }
-    if(obj.maxY > gameArea.height){
-      obj.anchorObj.move(0,gameArea.height - obj.maxY); 
-      if(obj.colType == 'bounce'){
-        obj.anchorObj.yVel *= -1;
-      }      
-    }
-    if(obj.maxX > gameArea.width){
-      obj.anchorObj.move(gameArea.width - obj.maxX,0); 
-      if(obj.colType == 'bounce'){
-        obj.anchorObj.xVel *= -1;
-      }      
-    }
-    if(obj.minX < 0){
-      obj.anchorObj.move(-obj.minX,0); 
-      if(obj.colType == 'bounce'){
-        obj.anchorObj.xVel *= -1;
-      }      
     }
   }
 
@@ -889,36 +1057,42 @@ function draw() {
     }
     objects.push(new polygon(X,Y,c,layer));
   }
-
-  objects.push(new image(canada,50,50,100,300,0));
+  
+  /*objects.push(new image(canada,50,50,100,300,0));
   hitboxes.push(new polygonHitBox(objects[0],false,1,'static',[139,70,69,72,81,94,119,129,134,140],[292,291,204,130,65,53,51,68,91,176]));
   hitboxes.push(new polygonHitBox(objects[0],false,1,'static',[69,72,59,51,51,54,56,63],[289,132,136,162,218,265,283,290]));
   hitboxes.push(new polygonHitBox(objects[0],false,1,'static',[71,73,79,90,99,103,104,100],[290,333,345,349,343,333,295,278]));
   hitboxes.push(new polygonHitBox(objects[0],false,1,'static',[112,112,120,129,138,139,139],[293,326,335,335,325,295,281]));
   hitboxes.push(new circleHitBox(objects[0],false,1,'static',112,126,35));
-  hitboxes.push(new circleHitBox(objects[0],false,1,'static',112,156,35));
-  objects.push(new circle(300,300,50,'rgb(0,0,255)',0));
-  hitboxes.push(new circleHitBox(objects[1],true,1,'move'));
-  /*&for(var i = 0; i < 20; i++){
+  hitboxes.push(new circleHitBox(objects[0],false,1,'static',112,156,35));*/
+  /*objects.push(new blank(400,400,1));
+  hitboxes.push(new pointHitBox(objects[0],true,1,'move'));
+  objects.push(new circle(300,300,25,'rgb(255,0,0)',1));
+  hitboxes.push(new circleHitBox(objects[1],true,1,'move'));*/
+  for(var i = 0; i < 20; i++){
     var r = getRndInteger(25,50);
     objects.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),r,generateRandomColor(),0));
-    hitboxes.push(new circleHitBox(objects[objects.length - 1],true,Math.pow(r,2),'bounce'));
-    objects[objects.length - 1].xVel = getRndInteger(-2,2);
-    objects[objects.length - 1].yVel = getRndInteger(-2,2);
+    hitboxes.push(new circleHitBox(objects[objects.length - 1],true,Math.pow(r,2),'move'));
+    //objects[objects.length - 1].xVel = getRndInteger(-120,120);
+    //objects[objects.length - 1].yVel = getRndInteger(-120,120);
     r = getRndInteger(25,50);
     regularPolygon(gameArea.width/2,gameArea.height/2,r,generateRandomColor(),0,getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
-    hitboxes.push(new polygonHitBox(objects[objects.length - 1],true,Math.pow(r,2),'bounce'));
-    objects[objects.length - 1].xVel = getRndInteger(-2,2);
-    objects[objects.length - 1].yVel = getRndInteger(-2,2);
-  }*/
+    hitboxes.push(new polygonHitBox(objects[objects.length - 1],true,Math.pow(r,2),'move'));
+    //objects[objects.length - 1].xVel = getRndInteger(-120,120);
+    //objects[objects.length - 1].yVel = getRndInteger(-120,120);
+  }
+  var time = setInterval(Timer, 10);
 
+  function Timer() {
+    t++
+  }
   function refresh(){
     draw.clearRect(0, 0, gameArea.width, gameArea.height);
     
     renderObject(objects);
     renderObject(hitboxes);
     renderObject(debugObjects);
-    moveObject(objects[0]);
+    //moveObject(objects[1]);
     debug();
 
     //put collision based reactions here
