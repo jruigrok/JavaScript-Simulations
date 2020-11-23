@@ -26,8 +26,6 @@ var collisions = [];
 var debugMode = false;
 var debugColor = 'rgb(0,255,0)';
 var objects = [];
-var canada = new Image();
-canada.src = 'Images/Among_Us_Character.png';
 var mouseDown = false;
 var mouseX = 0;
 var mouseY = 0;
@@ -286,7 +284,6 @@ function draw() {
           detectCollision(obj,hitboxes[i]);
         }
       }
-      
     }
   }
 
@@ -1058,28 +1055,13 @@ function draw() {
     objects.push(new polygon(X,Y,c,layer));
   }
   
-  /*objects.push(new image(canada,50,50,100,300,0));
-  hitboxes.push(new polygonHitBox(objects[0],false,1,'static',[139,70,69,72,81,94,119,129,134,140],[292,291,204,130,65,53,51,68,91,176]));
-  hitboxes.push(new polygonHitBox(objects[0],false,1,'static',[69,72,59,51,51,54,56,63],[289,132,136,162,218,265,283,290]));
-  hitboxes.push(new polygonHitBox(objects[0],false,1,'static',[71,73,79,90,99,103,104,100],[290,333,345,349,343,333,295,278]));
-  hitboxes.push(new polygonHitBox(objects[0],false,1,'static',[112,112,120,129,138,139,139],[293,326,335,335,325,295,281]));
-  hitboxes.push(new circleHitBox(objects[0],false,1,'static',112,126,35));
-  hitboxes.push(new circleHitBox(objects[0],false,1,'static',112,156,35));*/
-  /*objects.push(new blank(400,400,1));
-  hitboxes.push(new pointHitBox(objects[0],true,1,'move'));
-  objects.push(new circle(300,300,25,'rgb(255,0,0)',1));
-  hitboxes.push(new circleHitBox(objects[1],true,1,'move'));*/
   for(var i = 0; i < 20; i++){
     var r = getRndInteger(25,50);
     objects.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),r,generateRandomColor(),0));
     hitboxes.push(new circleHitBox(objects[objects.length - 1],true,Math.pow(r,2),'move'));
-    //objects[objects.length - 1].xVel = getRndInteger(-120,120);
-    //objects[objects.length - 1].yVel = getRndInteger(-120,120);
     r = getRndInteger(25,50);
     regularPolygon(gameArea.width/2,gameArea.height/2,r,generateRandomColor(),0,getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
     hitboxes.push(new polygonHitBox(objects[objects.length - 1],true,Math.pow(r,2),'move'));
-    //objects[objects.length - 1].xVel = getRndInteger(-120,120);
-    //objects[objects.length - 1].yVel = getRndInteger(-120,120);
   }
   var time = setInterval(Timer, 10);
 
