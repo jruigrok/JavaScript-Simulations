@@ -23,6 +23,7 @@ var colPresicion = 0.05;
 var hitboxes = [];
 var pressedKeys = [];
 var collisions = [];
+var groups = [];
 var debugMode = false;
 var debugColor = 'rgb(0,255,0)';
 var objects = [];
@@ -277,11 +278,13 @@ function draw() {
     deleted += 1;
   }
 
-  function checkObjects(obj){
-    for(var i = 0; i < hitboxes.length; i++){
-      if(!(obj.maxX >= hitboxes[i].maxX && hitboxes[i].maxX <= obj.minX || hitboxes[i].minX >= obj.maxX && hitboxes[i].maxX >= obj.maxX || obj.maxY >= hitboxes[i].maxY && hitboxes[i].maxY <= obj.minY || hitboxes[i].minY >= obj.maxY && hitboxes[i].maxY >= obj.maxY)){
-        if(hitboxes[i].col != obj.ID && hitboxes[i].ID != obj.ID && hitboxes[i].colType != 'none' && obj.anchorObj != hitboxes[i].anchorObj){
-          detectCollision(obj,hitboxes[i]);
+  function checkObjects(ob1,ob2){
+    if(!(ob1.maxX >= ob2.maxX && ob2.maxX <= ob1.minX || ob2.minX >= ob1.maxX && ob2.maxX >= ob1.maxX || ob1.maxY >= ob2.maxY && ob2.maxY <= ob1.minY || ob2.minY >= ob1.maxY && ob2.maxY >= ob1.maxY)){
+      if(ob2.col != ob1.ID && ob2.ID != ob1.ID && ob2.colType != 'none' && ob1.anchorObj != ob2.anchorObj){
+        if(ob1.anchorObj.group == false || ob2.anchorObj.group == false){
+          detectCollision(ob1,ob2);
+        }else if(ob1.anchorObj.group != ob2.anchorObj.group){
+          detectCollision(ob1,ob2);
         }
       }
     }
@@ -633,7 +636,9 @@ function draw() {
 
   polygonHitBox.prototype.render = function(){
     if(this.colType != 'none'){
-      checkObjects(this);
+      for(var i = 0; i < hitboxes.length; i++){
+        checkObjects(this,hitboxes[i]);
+      } 
     }
   }
 
@@ -708,8 +713,8 @@ function draw() {
   }
 
   circleHitBox.prototype.render = function(){
-    if(this.colType != 'none'){
-      checkObjects(this);
+    for(var i = 0; i < hitboxes.length; i++){
+      checkObjects(this,hitboxes[i]);
     }
   }
 
@@ -776,9 +781,9 @@ function draw() {
   }
 
   pointHitBox.prototype.render = function(){
-    if(this.colType != 'none'){
-      checkObjects(this);
-    }
+    for(var i = 0; i < hitboxes.length; i++){
+      checkObjects(this,hitboxes[i]);
+    } 
   }
 
   pointHitBox.prototype.drawBounds = function(){
@@ -822,6 +827,7 @@ function draw() {
     this.layer = layer;
     this.type = 'circle';
     this.timeChange = t;
+    this.group = false;
   }
 
   circle.prototype.render = function(){
@@ -875,6 +881,7 @@ function draw() {
     this.layer = layer;
     this.type = 'polygon';
     this.timeChange = t;
+    this.group = false;
   }
 
   polygon.prototype.render = function(){
@@ -935,6 +942,7 @@ function draw() {
     this.objects = [];
     this.type = 'image';
     this.timeChange = t;
+    this.group = false;
   }
 
   image.prototype.render = function(){
@@ -987,6 +995,7 @@ function draw() {
     this.objects = [];
     this.type = 'blank';
     this.timeChange = t;
+    this.group = false;
   }
 
   blank.prototype.render = function(){
@@ -1026,6 +1035,41 @@ function draw() {
     deleted += 1;
   }
 
+  var group = function(objects){
+    this.objects = objects;
+    for(var i = 0; i < this.objects.length; i++){
+      this.objects[i].group = this;
+    }
+    this.xVel = 0;
+    this.yVel = 0;
+    this.ax = 0;
+    this.ay = 0;
+    this.timeChange = t;
+  }
+
+  group.prototype.render = function(){
+    var time = t - this.timeChange;
+    this.timeChange = t;
+    this.xVel += this.ax * time/100;
+    this.yVel += this.ay * time/100;
+    this.move(this.xVel * time/100,this.yVel * time/100);
+  }
+
+  group.prototype.move = function(x,y){
+    for(var i = 0; i < this.objects.length; i++){
+      this.objects[i].move(x,y);
+    }
+  }
+
+  group.prototype.delete = function() {
+    for(var i = 0; i < this.objects.length; i++){
+      this.objects[i].group = false;
+    }
+    var indexToDelete = groups.indexOf(this);
+    groups.splice(indexToDelete, 1);
+    deleted += 1; 
+  }
+
   function resetCollisions(){
     collisions = [];
     for(var i = 0; i < hitboxes.length; i++){
@@ -1055,28 +1099,31 @@ function draw() {
     objects.push(new polygon(X,Y,c,layer));
   }
   
-  for(var i = 0; i < 20; i++){
-    var r = getRndInteger(25,50);
+  for(var i = 0; i < 500; i++){
+    var r = getRndInteger(5,10);
     objects.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),r,generateRandomColor(),0));
     hitboxes.push(new circleHitBox(objects[objects.length - 1],true,Math.pow(r,2),'move'));
-    r = getRndInteger(25,50);
+    r = getRndInteger(5,10);
     regularPolygon(gameArea.width/2,gameArea.height/2,r,generateRandomColor(),0,getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
     hitboxes.push(new polygonHitBox(objects[objects.length - 1],true,Math.pow(r,2),'move'));
   }
+
+  //groups.push(new group(objects));
+
   var time = setInterval(Timer, 10);
 
   function Timer() {
     t++
   }
+
   function refresh(){
     draw.clearRect(0, 0, gameArea.width, gameArea.height);
-    
+    renderObject(groups);
     renderObject(objects);
     renderObject(hitboxes);
     renderObject(debugObjects);
-    //moveObject(objects[1]);
+    //moveObject(groups[0]);
     debug();
-
     //put collision based reactions here
 
     resetCollisions();
