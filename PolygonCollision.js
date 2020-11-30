@@ -18,13 +18,13 @@ SOFTWARE.
 */
 
 var deleted = 0;
-var speed = 100;
+var speed = 500;
 var colPresicion = 0.05;
 var hitboxes = [];
 var pressedKeys = [];
 var collisions = [];
 var groups = [];
-var debugMode = false;
+var debugMode = true;
 var debugColor = 'rgb(0,255,0)';
 var objects = [];
 var mouseDown = false;
@@ -37,6 +37,8 @@ var mode = 'polygon';
 var r = 1;
 var debugObjects = [];
 var t = 0;
+var energyLoss = .6;
+var pause = true;
 
 function draw() {
   gameArea.width = window.innerWidth;
@@ -238,6 +240,15 @@ function draw() {
       for(var i = 0; i < hitboxes.length; i++){
         hitboxes[i].drawBounds();
       }
+      if(pressedKeys[78]){
+        if(pause){
+          pause = false;
+          
+        }else{
+          pause = true;
+        }
+        pressedKeys[78] = false;
+      }
     }
   }
 
@@ -279,7 +290,7 @@ function draw() {
   }
 
   function checkObjects(ob1,ob2){
-    if(!(ob1.maxX >= ob2.maxX && ob2.maxX <= ob1.minX || ob2.minX >= ob1.maxX && ob2.maxX >= ob1.maxX || ob1.maxY >= ob2.maxY && ob2.maxY <= ob1.minY || ob2.minY >= ob1.maxY && ob2.maxY >= ob1.maxY)){
+    if(!(ob1.maxX >= ob2.maxX && ob2.maxX <= ob1.minX || ob2.minX >= ob1.maxX && ob2.maxX >= ob1.maxX || ob1.maxY >= ob2.maxY && ob2.maxY <= ob1.minY || ob2.minY >= ob1.maxY && ob2.maxY >= ob1.maxY) && !pause){
       if(ob2.col != ob1.ID && ob2.ID != ob1.ID && ob2.colType != 'none' && ob1.anchorObj != ob2.anchorObj){
         if(ob1.anchorObj.group == false || ob2.anchorObj.group == false){
           detectCollision(ob1,ob2);
@@ -299,7 +310,8 @@ function draw() {
         var s = (ob1.r + ob2.r) - d;
         var nx = dx/d;
         var ny = dy/d;
-        collisions.push(new collision(ob1,ob2,s,-nx,ny));
+        var a = Math.atan(dy/dx);
+        collisions.push(new collision(ob1,ob2,s,-nx,ny,(Math.cos(a) * ob1.r) + ob1.x ,(Math.sin(a) * ob1.r) + ob1.y));
         collisions[collisions.length - 1].resolve();
       }
     }else if(ob1.type == 'polygonHitBox' && ob2.type == 'polygonHitBox'){
@@ -307,6 +319,10 @@ function draw() {
       var cx = 0;
       var cy = 0;
       var col = true;
+      var X = 0;
+      var Y = 0;
+      var pointX = 0;
+      var pointY = 0;
       for(var j = 0; j < ob1.numSides + ob2.numSides; j++){
         if(!col){
           break;
@@ -340,18 +356,21 @@ function draw() {
         }else{
           if(Math.abs(ob2SX - ob1GX) < Math.abs(ob2GX - ob1SX)){
             var overlap = ob2SX - ob1GX;
+            X = ob1GX;
           }else{
             var overlap = ob2GX - ob1SX;
+            X = ob1SX;
           }
           if(Math.abs(overlap) < Math.abs(smallestOverlap)){
             smallestOverlap = overlap;
             cx = ax;
             cy = ay;
+            pointX = X;
           }
         }
       } 
       if(col){
-        collisions.push(new collision(ob1,ob2,smallestOverlap,cx,cy));
+        collisions.push(new collision(ob1,ob2,smallestOverlap,cx,cy,pointX,100));
         collisions[collisions.length - 1].resolve();
       }
     }else if((ob1.type == 'circleHitBox' && ob2.type == 'polygonHitBox') || (ob2.type == 'circleHitBox' && ob1.type == 'polygonHitBox')){
@@ -360,6 +379,10 @@ function draw() {
       var closestY = -Infinity;
       var sideCol = false;
       var inside = 0;
+      var overlap = Infinity;
+      var d = Infinity;
+      var cx = 0;
+      var cy = 0;
       if(ob1.type == 'circleHitBox'){
         var Circle = ob1;
         var Polygon = ob2;
@@ -411,8 +434,6 @@ function draw() {
           }
           if(newCircleX < PolygonGX && newCircleX > PolygonSX){
             inside += 1;
-          }
-          if(sideCol && col || col && inside == Polygon.numSides){
             if(Math.abs(newCircleX - PolygonGX) > Math.abs(newCircleX - PolygonSX)){
               var closestPolygon = PolygonSX;
               var closestCircle = CircleGX;
@@ -420,15 +441,35 @@ function draw() {
               var closestPolygon = PolygonGX;
               var closestCircle = CircleSX;
             }
-            var d = closestPolygon - closestCircle;
-            var cx = -ax;
-            var cy = -ay;
-            break;
+            overlap = closestPolygon - closestCircle;
+            if(Math.abs(d) > Math.abs(overlap)){
+              d = overlap;
+              cx = -ax;
+              cy = -ay;
+            }
+          }
+          if(sideCol && col || inside == Polygon.numSides){
+            if(inside != Polygon.numSides){
+              if(Math.abs(newCircleX - PolygonGX) > Math.abs(newCircleX - PolygonSX)){
+                var closestPolygon = PolygonSX;
+                var closestCircle = CircleGX;
+              }else{
+                var closestPolygon = PolygonGX;
+                var closestCircle = CircleSX;
+              }
+              d = closestPolygon - closestCircle;
+              cx = -ax;
+              cy = -ay;
+              break;
+            }else{
+              break;
+            }
           }
         }
       }
       if(col && sideCol || inside == Polygon.numSides){
-        collisions.push(new collision(Polygon,Circle,d,cx,cy));
+
+        collisions.push(new collision(Polygon,Circle,d,cx,cy,200,200));
         collisions[collisions.length - 1].resolve();
       }else if(col){
         for(var i = 0; i < Polygon.numSides; i++){
@@ -437,6 +478,7 @@ function draw() {
           if(x + y < Math.pow(Circle.x - closestX,2) + Math.pow(Circle.y - closestY,2)){
             closestX = Polygon.x[i];
             closestY = Polygon.y[i];
+            pointNum = i;
           }
         }
   
@@ -454,7 +496,7 @@ function draw() {
           col = false;
         }
         if(col){
-          collisions.push(new collision(Polygon,Circle,Circle.r - d,-dx/d,-dy/d));
+          collisions.push(new collision(Polygon,Circle,Circle.r - d,-dx/d,-dy/d,Polygon.x[i],Polygon.y[i]));
           collisions[collisions.length - 1].resolve();
         }
       }
@@ -473,7 +515,7 @@ function draw() {
         var s = (Circle.r) - d;
         var nx = dx/d;
         var ny = dy/d;
-        collisions.push(new collision(Point,Circle,s,-nx,ny));
+        collisions.push(new collision(Point,Circle,s,-nx,ny,Point.x,Point.y));
         collisions[collisions.length - 1].resolve();
       }
     }else if(ob1.type == 'pointHitBox' && ob2.type == 'polygonHitBox' || ob2.type == 'pointHitBox' && ob1.type == 'polygonHitBox'){
@@ -522,23 +564,26 @@ function draw() {
         } 
       }
       if(col){
-        collisions.push(new collision(Polygon,Point,closestD,cx,cy));
+        collisions.push(new collision(Polygon,Point,closestD,cx,cy,Point.x,Point.y));
         collisions[collisions.length - 1].resolve();
       }
     }
   }
 
-  var collision = function(ob1,ob2,overlap,cx,cy){
+  var collision = function(ob1,ob2,overlap,cx,cy,x,y){
     this.ob1 = ob1;
     this.ob2 = ob2;
     this.overlap = overlap;
     this.cx = cx;
     this.cy = cy;
+    this.x = x;
+    this.y = y;
     this.ob1.collisions.push(new collisionInfo(ob1,ob2,cx,-cy));
     this.ob2.collisions.push(new collisionInfo(ob2,ob1,-cx,cy));
   }
 
   collision.prototype.resolve = function(){
+    //drawCircle(this.x,this.y,2,'rgb(255,255,255)',true);
     this.ob1.col = this.ob2.ID;
     this.ob2.col = this.ob1.ID;
     let k = -2 * ((this.ob2.anchorObj.xVel - this.ob1.anchorObj.xVel) * this.cx + (this.ob2.anchorObj.yVel - this.ob1.anchorObj.yVel) * -this.cy) / (1 / this.ob2.m + 1 / this.ob1.m);
@@ -553,28 +598,27 @@ function draw() {
       }else if(this.ob1.colType == 'static'){
         this.ob2.anchorObj.move(-(this.overlap * this.cx),-(this.overlap * -this.cy));
       }else if(this.ob2.colType == 'static'){
-        this.ob1.anchorObj.move((this.overlap * this.cx),(this.overlap * -this.cy)); 
+        this.ob1.anchorObj.move((this.overlap * this.cx),(this.overlap * -this.cy));
       }else{
         this.ob2.anchorObj.move(-(this.overlap * this.cx)/2,-(this.overlap * -this.cy)/2);
         this.ob1.anchorObj.move((this.overlap * this.cx)/2,(this.overlap * -this.cy)/2);
       }
-  
       if(this.ob1.colType == 'bounce'){
         if(this.ob2.colType != 'bounce'){
-          this.ob1.anchorObj.xVel -= k2 * this.cx;
-          this.ob1.anchorObj.yVel -= k2 * -this.cy;
+          this.ob1.anchorObj.xVel -= (k2 * this.cx) * this.ob2.bounciness;
+          this.ob1.anchorObj.yVel -= (k2 * -this.cy) * this.ob2.bounciness;
         }else{
-          this.ob1.anchorObj.xVel -= k * this.cx / this.ob1.m;
-          this.ob1.anchorObj.yVel -= k * -this.cy / this.ob1.m;
+          this.ob1.anchorObj.xVel -= (k * this.cx / this.ob1.m) * this.ob2.bounciness;
+          this.ob1.anchorObj.yVel -= (k * -this.cy / this.ob1.m) * this.ob2.bounciness;
         }
       }
       if(this.ob2.colType == 'bounce'){
         if(this.ob1.colType != 'bounce'){
-          this.ob2.anchorObj.xVel += k2 * this.cx;
-          this.ob2.anchorObj.yVel += k2 * -this.cy;
+          this.ob2.anchorObj.xVel += (k2 * this.cx) * this.ob1.bounciness;
+          this.ob2.anchorObj.yVel += (k2 * -this.cy) * this.ob1.bounciness;
         }else{
-          this.ob2.anchorObj.xVel += k * this.cx / this.ob2.m;
-          this.ob2.anchorObj.yVel += k * -this.cy / this.ob2.m;
+          this.ob2.anchorObj.xVel += (k * this.cx / this.ob2.m) * this.ob1.bounciness;
+          this.ob2.anchorObj.yVel += (k * -this.cy / this.ob2.m) * this.ob1.bounciness;
         }
       }
     }
@@ -586,9 +630,9 @@ function draw() {
     deleted += 1;
   }
 
-  var collisionInfo = function(obj,obj2,ax,ay){
-    this.obj = obj;
-    this.obj2 = obj2;
+  var collisionInfo = function(ob1,ob2,ax,ay){
+    this.ob1 = ob1;
+    this.ob2 = ob2;
     this.ax = ax;
     this.ay = ay;
   }
@@ -620,10 +664,6 @@ function draw() {
     this.col = false;
     this.numSides = this.x.length;
     this.type = 'polygonHitBox';
-    this.maxX = Math.max(...this.x);
-    this.minX = Math.min(...this.x);
-    this.maxY = Math.max(...this.y);
-    this.minY = Math.min(...this.y);
     this.x.push(this.x[0]);
     this.y.push(this.y[0]);
     this.m = m;
@@ -632,6 +672,53 @@ function draw() {
     this.colPriority = this.ID;
     this.anchorObj.addObject(this);
     this.collisions = [];
+    this.bounciness = 1;
+    this.area = 0;  
+    this.COMx = 0;
+    this.COMy = 0;
+    this.getMinMax();
+    this.centerOfMass();
+    this.COMdx = this.COMx - this.x[0];
+    this.COMdy = this.COMy - this.y[0];
+  }
+
+  polygonHitBox.prototype.centerOfMass = function(){
+    if(this.numSides > 3){
+      var x = ((this.maxX - this.minX)/2) + this.minX;
+      var y = ((this.maxY - this.minY)/2) + this.minY;
+      var areas = [];
+      var COMXs = [];
+      var COMYs = [];
+      for(var i = 0; i < this.numSides; i++){
+        var dxa = x - this.x[i];
+        var dya = y - this.y[i];
+        var dxb = x - this.x[i + 1];
+        var dyb = y - this.y[i + 1];
+        areas.push(Math.abs(((dxa * dyb) - (dxb * dya))/2));
+        COMXs.push((this.x[i] + this.x[i+1] + x)/3);
+        COMYs.push((this.y[i] + this.y[i+1] + y)/3);
+      }
+      this.area = 0;
+      for(var i = 0; i < areas.length; i++){
+        this.area += areas[i];
+      }
+      this.COMx = 0;
+      this.COMy = 0;
+      for(var i = 0; i < COMXs.length; i++){
+        this.COMx += (COMXs[i] * areas[i]);
+        this.COMy += (COMYs[i] * areas[i]);
+      }
+      this.COMx /= this.area;
+      this.COMy /= this.area;
+    }else{
+      this.COMx = (this.x[0] + this.x[1] + this.x[2])/3;
+      this.COMy = (this.y[0] + this.y[1] + this.y[2])/3;
+      var dxa = this.x[2] - this.x[0];
+      var dya = this.y[2] - this.y[0];
+      var dxb = this.x[2] - this.x[1];
+      var dyb = this.y[2] - this.y[1];
+      this.area = Math.abs(((dxa * dyb) - (dxb * dya))/2);
+    }
   }
 
   polygonHitBox.prototype.render = function(){
@@ -651,6 +738,8 @@ function draw() {
       this.x[i] += x;
       this.y[i] += y;
     }
+    this.COMx += x;
+    this.COMy += y;
     this.getMinMax();
   }
 
@@ -661,6 +750,8 @@ function draw() {
       this.x[i] -= dx;
       this.y[i] -= dy;
     }
+    this.COMx = this.x[0] + this.COMdx;
+    this.COMy = this.y[0] + this.COMdy;
     this.getMinMax();
   }
 
@@ -702,14 +793,14 @@ function draw() {
     this.type = 'circleHitBox';
     this.m = m;
     this.colType = colType;
-    this.maxX = this.x + this.r;
-    this.minX = this.x - this.r;
-    this.maxY = this.y + this.r;
-    this.minY = this.y - this.r;
     this.ID = hitboxes.length - 1;
     this.colPriority = this.ID;
     this.anchorObj.addObject(this);
     this.collisions = [];
+    this.bounciness = 1;
+    this.COMx = this.x;
+    this.COMy = this.y;
+    this.getMinMax();
   }
 
   circleHitBox.prototype.render = function(){
@@ -725,12 +816,16 @@ function draw() {
   circleHitBox.prototype.move = function(x,y){
     this.x += x;
     this.y += y;
+    this.COMx = this.x;
+    this.COMy = this.y;
     this.getMinMax();
   }
 
   circleHitBox.prototype.moveTo = function(x,y){
     this.x = x;
     this.y = y;
+    this.COMx = this.x;
+    this.COMy = this.y;
     this.getMinMax();
   }
 
@@ -766,10 +861,6 @@ function draw() {
         this.dy = anchorObj.y[0] - this.y;
       }
     }
-    this.maxX = this.x;
-    this.minX = this.x;
-    this.maxY = this.y;
-    this.minY = this.y;
     this.col = false;
     this.type = 'pointHitBox';
     this.m = m;
@@ -778,6 +869,8 @@ function draw() {
     this.colPriority = this.ID;
     this.anchorObj.addObject(this);
     this.collisions = [];
+    this.bounciness = 1;
+    this.getMinMax();
   }
 
   pointHitBox.prototype.render = function(){
@@ -1022,7 +1115,7 @@ function draw() {
     this.x += x;
     this.y += y;
     for(var i = 0; i < this.objects.length; i++){
-      this.objects[i].moveTo(this.x - this.objects[i].dx,this.y - this.objects[i].dy);
+      //this.objects[i].moveTo(this.x - this.objects[i].dx,this.y - this.objects[i].dy);
     }
   }
 
@@ -1098,22 +1191,41 @@ function draw() {
     }
     objects.push(new polygon(X,Y,c,layer));
   }
-  
-  for(var i = 0; i < 500; i++){
-    var r = getRndInteger(5,10);
-    objects.push(new circle(gameArea.width/2 + getRndInteger(-20,20),gameArea.height/2 + getRndInteger(-20,20),r,generateRandomColor(),0));
-    hitboxes.push(new circleHitBox(objects[objects.length - 1],true,Math.pow(r,2),'move'));
-    r = getRndInteger(5,10);
-    regularPolygon(gameArea.width/2,gameArea.height/2,r,generateRandomColor(),0,getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
-    hitboxes.push(new polygonHitBox(objects[objects.length - 1],true,Math.pow(r,2),'move'));
+  objects.push(new polygon([0,gameArea.width,gameArea.width,0],[gameArea.height,gameArea.height,gameArea.height-50,gameArea.height-50],'rgb(255,0,0)',1));
+  hitboxes.push(new polygonHitBox(objects[0],true,1,'static'));
+  objects.push(new polygon([0,50,50,0],[gameArea.height,gameArea.height,0,0],'rgb(255,0,0)',1));
+  hitboxes.push(new polygonHitBox(objects[1],true,1,'static'));
+  objects.push(new polygon([gameArea.width,gameArea.width-50,gameArea.width-50,gameArea.width],[gameArea.height,gameArea.height,0,0],'rgb(255,0,0)',1));
+  hitboxes.push(new polygonHitBox(objects[2],true,1,'static'));
+  objects.push(new polygon([0,gameArea.width,gameArea.width,0],[0,0,50,50],'rgb(255,0,0)',1));
+  hitboxes.push(new polygonHitBox(objects[3],true,1,'static'));
+  objects.push(new polygon([0,gameArea.width/2 - 100,0],[gameArea.height/2 + 100,gameArea.height,gameArea.height],'rgb(0,255,0)',1));
+  hitboxes.push(new polygonHitBox(objects[4],true,1,'static'));
+  objects.push(new polygon([gameArea.width,gameArea.width/2 + 100,gameArea.width],[gameArea.height/2 + 100,gameArea.height,gameArea.height],'rgb(0,255,0)',1));
+  hitboxes.push(new polygonHitBox(objects[5],true,1,'static'));
+  for(var i = 0; i < 6; i++){
+    hitboxes[i].bounciness = .6;
   }
-
-  //groups.push(new group(objects));
+  groups.push(new group(objects.slice(0,6)));
+  for(var i = 0; i < 100; i++){
+    var r = getRndInteger(5,12);
+    objects.push(new circle(getRndInteger(70,gameArea.width-70),getRndInteger(70,gameArea.height-370),r,generateRandomColor(),0));
+    hitboxes.push(new circleHitBox(objects[objects.length - 1],true,Math.pow(r,2),'bounce'));
+    objects[objects.length - 1].ay = 500;
+    hitboxes[hitboxes.length-1].bounciness = 1;
+    r = getRndInteger(5,12);
+    regularPolygon(getRndInteger(70,gameArea.width-70),getRndInteger(70,gameArea.height-370),r,generateRandomColor(),0,getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
+    hitboxes.push(new polygonHitBox(objects[objects.length - 1],true,Math.pow(r,2),'bounce'));
+    objects[objects.length - 1].ay = 500;
+    hitboxes[hitboxes.length-1].bounciness = 1;
+  }
 
   var time = setInterval(Timer, 10);
 
   function Timer() {
-    t++
+    if(!pause){
+      t++;
+    }
   }
 
   function refresh(){
@@ -1122,8 +1234,9 @@ function draw() {
     renderObject(objects);
     renderObject(hitboxes);
     renderObject(debugObjects);
-    //moveObject(groups[0]);
+    moveObject(objects[0]);
     debug();
+
     //put collision based reactions here
 
     resetCollisions();
