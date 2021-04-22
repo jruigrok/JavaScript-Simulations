@@ -24,6 +24,7 @@ var hitboxes = [];
 var pressedKeys = [];
 var collisions = [];
 var groups = [];
+var springs = [];
 var debugMode = true;
 var debugColor = 'rgb(0,255,0)';
 var objects = [];
@@ -37,7 +38,6 @@ var mode = 'polygon';
 var r = 1;
 var debugObjects = [];
 var t = 0;
-var energyLoss = .6;
 var pause = false;
 
 function draw() {
@@ -47,27 +47,6 @@ function draw() {
 
   if (gameArea.getContext) {
     var draw = gameArea.getContext('2d');
-  }
-
-  function moveObject(obj){
-    if(pressedKeys[37]){
-        obj.xVel = -speed;
-    }
-    if(pressedKeys[39]){
-        obj.xVel = speed;
-    }
-    if(pressedKeys[38]){
-        obj.yVel = -speed;
-    }
-    if(pressedKeys[40]){
-        obj.yVel = speed;
-    }
-    if(!pressedKeys[37] && !pressedKeys[39]){
-        obj.xVel = 0;
-    }
-    if(!pressedKeys[38] && !pressedKeys[40]){
-        obj.yVel = 0;
-    }
   }
 
   document.body.onmousedown = function() {
@@ -293,9 +272,13 @@ function draw() {
     if(!(ob1.maxX >= ob2.maxX && ob2.maxX <= ob1.minX || ob2.minX >= ob1.maxX && ob2.maxX >= ob1.maxX || ob1.maxY >= ob2.maxY && ob2.maxY <= ob1.minY || ob2.minY >= ob1.maxY && ob2.maxY >= ob1.maxY) && !pause){
       if(ob2.col != ob1.ID && ob2.ID != ob1.ID && ob2.colType != 'none' && ob1.anchorObj != ob2.anchorObj){
         if(ob1.anchorObj.group == false || ob2.anchorObj.group == false){
-          detectCollision(ob1,ob2);
+          if(ob1.layer == ob2.layer){
+            detectCollision(ob1,ob2);
+          }
         }else if(ob1.anchorObj.group != ob2.anchorObj.group){
-          detectCollision(ob1,ob2);
+          if(ob1.layer == ob2.layer){
+            detectCollision(ob1,ob2);
+          }
         }
       }
     }
@@ -306,7 +289,7 @@ function draw() {
       var dx = ob2.x - ob1.x;
       var dy = ob2.y - ob1.y;
       var d = Math.sqrt(Math.pow(dx, 2) + Math.pow(dy, 2));
-      if(d + colPresicion < ob1.r + ob2.r){
+      if(d + colPresicion < ob1.r + ob2.r && Math.round(d) != 0){
         var s = (ob1.r + ob2.r) - d;
         var nx = dx/d;
         var ny = dy/d;
@@ -319,13 +302,13 @@ function draw() {
       var cx = 0;
       var cy = 0;
       var col = true;
-      var X = 0;
+      /*var X = 0;
       var Y = 0;
       var pointsX1 = [];
       var pointsY1 = [];
       var pointsX2 = [];
-      var pointsY2 = [];
-      var side = 0;
+      var pointsY2 = [];*/
+      //var side = 0;
       for(var j = 0; j < ob1.numSides + ob2.numSides; j++){
         if(!col){
           break;
@@ -337,7 +320,7 @@ function draw() {
         if(j < ob1.numSides){
           var dy = (gameArea.height - ob1.y[j]) - (gameArea.height - ob1.y[j + 1]);
           var dx = ob1.x[j] - ob1.x[j + 1];
-          side = j;
+         // side = j;
         }else{
           var dy = (gameArea.height - ob2.y[j - ob1.numSides]) - (gameArea.height - ob2.y[j - ob1.numSides + 1]);
           var dx = ob2.x[j - ob1.numSides] - ob2.x[j - ob1.numSides + 1];
@@ -373,11 +356,11 @@ function draw() {
             smallestOverlap = overlap;
             cx = ax;
             cy = ay;
-            pointsX1 = newOb1X;
+            /*pointsX1 = newOb1X;
             pointsY1 = newOb1Y;
             pointsX2 = newOb2X;
-            pointsY2 = newOb2Y;
-            side = j;
+            pointsY2 = newOb2Y;*/
+           // side = j;
           }
         }
       } 
@@ -650,16 +633,56 @@ function draw() {
     this.ay = ay;
   }
 
-  var polygonHitBox = function(anchorObj,fit,m,colType,x,y){
+  var spring = function(ob1,ob2,d,k,l){
+    this.ob1 = ob1;
+    this.ob2 = ob2;
+    this.d = d;
+    this.k = k;
+    this.l = l;
+  }
+
+  spring.prototype.render = function(){
+    var vec = Math.sqrt(Math.pow(this.ob1.x - this.ob2.x,2) + Math.pow(this.ob1.y -  this.ob2.y,2));
+    if(vec != 0){
+      var dx = (this.ob1.x - this.ob2.x)/vec;
+      var dy = (this.ob1.y - this.ob2.y)/vec;
+      var dx2 = this.ob2.xVel - this.ob1.xVel;
+      var dy2 = this.ob2.yVel - this.ob1.yVel;
+      var fd = ((dx * dx2) + (dy * dy2)) * this.d;
+      var fs = (vec - this.l) * this.k;
+      var ft = fs - fd;
+      this.ob1.xVel += ft * -dx / this.ob1.objects[0].m;
+      this.ob1.yVel += ft * -dy / this.ob1.objects[0].m;
+      this.ob2.xVel += ft * dx / this.ob2.objects[0].m;
+      this.ob2.yVel += ft * dy / this.ob2.objects[0].m;
+    }
+    ctx.beginPath();
+    ctx.strokeStyle = '#8a8a8a';
+    ctx.moveTo(this.ob1.x,this.ob1.y);
+    ctx.lineTo(this.ob2.x,this.ob2.y);
+    ctx.stroke();
+  }
+
+  spring.prototype.delete = function(){
+    var indexToDelete = springs.indexOf(this);
+    springs.splice(indexToDelete, 1);
+    deleted += 1;
+  }
+
+  var polygonHitBox = function(anchorObj,fit,d,colType,x,y){
     this.fit = fit;
     this.anchorObj = anchorObj;
+    this.x = [];
+    this.y = [];
     if(this.fit){
       if(anchorObj.type == 'image'){
         this.x = [anchorObj.x,anchorObj.x + anchorObj.w,anchorObj.x + anchorObj.w,anchorObj.x];
         this.y = [anchorObj.y,anchorObj.y,anchorObj.y + anchorObj.h,anchorObj.y + anchorObj.h];
       }else{
-        this.x = anchorObj.x;
-        this.y = anchorObj.y;
+        for(var i = 0; i < anchorObj.x.length; i++){
+          this.x[i] = anchorObj.x[i];
+          this.y[i] = anchorObj.y[i];
+        }
       }
       this.dx = 0;
       this.dy = 0;
@@ -679,7 +702,6 @@ function draw() {
     this.type = 'polygonHitBox';
     this.x.push(this.x[0]);
     this.y.push(this.y[0]);
-    this.m = m;
     this.colType = colType;
     this.ID = hitboxes.length - 1;
     this.colPriority = this.ID;
@@ -689,52 +711,78 @@ function draw() {
     this.area = 0;  
     this.COMx = 0;
     this.COMy = 0;
+    this.i = 0;
+    this.d = d;
     this.getMinMax();
     this.centerOfMass();
+    this.m = this.area * this.d;
+    this.xp = this.x[0];
+    this.yp = this.y[0];
     this.COMdx = this.COMx - this.x[0];
     this.COMdy = this.COMy - this.y[0];
+    this.layer = this.anchorObj.layer;
   }
 
-  polygonHitBox.prototype.centerOfMass = function(){
-    if(this.numSides > 3){
-      var x = ((this.maxX - this.minX)/2) + this.minX;
-      var y = ((this.maxY - this.minY)/2) + this.minY;
-      var areas = [];
-      var COMXs = [];
-      var COMYs = [];
-      for(var i = 0; i < this.numSides; i++){
-        var dxa = x - this.x[i];
-        var dya = y - this.y[i];
-        var dxb = x - this.x[i + 1];
-        var dyb = y - this.y[i + 1];
-        areas.push(Math.abs(((dxa * dyb) - (dxb * dya))/2));
-        COMXs.push((this.x[i] + this.x[i+1] + x)/3);
-        COMYs.push((this.y[i] + this.y[i+1] + y)/3);
+  polygonHitBox.prototype.rotate = function(d,px,py){
+    var cos = Math.cos(d);
+    var sin = Math.sin(d);
+    if(this.fit){
+      for(var i = 0; i < this.numSides + 1; i++){
+        var x = px + ((this.x[i] - px) * cos) - ((this.y[i] - py) * sin);
+        var y = py + ((this.y[i] - py) * cos) + ((this.x[i] - px) * sin);
+        this.x[i] = x;
+        this.y[i] = y;
+        this.anchorObj.x[i] = this.x[i];
+        this.anchorObj.y[i] = this.y[i];
       }
-      this.area = 0;
-      for(var i = 0; i < areas.length; i++){
-        this.area += areas[i];
-      }
-      this.COMx = 0;
-      this.COMy = 0;
-      for(var i = 0; i < COMXs.length; i++){
-        this.COMx += (COMXs[i] * areas[i]);
-        this.COMy += (COMYs[i] * areas[i]);
-      }
-      this.COMx /= this.area;
-      this.COMy /= this.area;
     }else{
-      this.COMx = (this.x[0] + this.x[1] + this.x[2])/3;
-      this.COMy = (this.y[0] + this.y[1] + this.y[2])/3;
-      var dxa = this.x[2] - this.x[0];
-      var dya = this.y[2] - this.y[0];
-      var dxb = this.x[2] - this.x[1];
-      var dyb = this.y[2] - this.y[1];
-      this.area = Math.abs(((dxa * dyb) - (dxb * dya))/2);
+      for(var i = 0; i < this.numSides + 1; i++){
+        var x = px + ((this.x[i] - px) * cos) - ((this.y[i] - py) * sin);
+        var y = py + ((this.y[i] - py) * cos) + ((this.x[i] - px) * sin);
+        this.x[i] = x;
+        this.y[i] = y;
+      }
     }
   }
 
+  polygonHitBox.prototype.centerOfMass = function(){
+    var x = ((this.maxX - this.minX)/2) + this.minX;
+    var y = ((this.maxY - this.minY)/2) + this.minY;
+    var inertia = 0;
+    var areas = [];
+    var COMXs = [];
+    var COMYs = [];
+    for(var i = 0; i < this.numSides; i++){
+      var dxa = x - this.x[i];
+      var dya = y - this.y[i];
+      var dxb = x - this.x[i + 1];
+      var dyb = y - this.y[i + 1];
+      var area = Math.abs(((dxa * dyb) - (dxb * dya))/2);
+      areas.push(area);
+      COMXs.push((this.x[i] + this.x[i+1] + x)/3);
+      COMYs.push((this.y[i] + this.y[i+1] + y)/3);
+      inertia += area * ((dxa * dxa + dya * dya) + (dxb * dxb + dyb * dyb) + (dxa * dxb + dya * dyb))/6;
+    }
+    this.area = 0;
+    for(var i = 0; i < areas.length; i++){
+      this.area += areas[i];
+    }
+    this.COMx = 0;
+    this.COMy = 0;
+    for(var i = 0; i < COMXs.length; i++){
+      this.COMx += (COMXs[i] * areas[i]);
+      this.COMy += (COMYs[i] * areas[i]);
+    }
+    this.COMx /= this.area;
+    this.COMy /= this.area;
+    this.i = inertia * this.d;
+    var centerX = x - this.COMx;
+    var centerY = y - this.COMy;
+    this.i -= this.area * (centerX * centerX + centerY * centerY);
+  }
+
   polygonHitBox.prototype.render = function(){
+    this.getMinMax();
     if(this.colType != 'none'){
       for(var i = 0; i < hitboxes.length; i++){
         checkObjects(this,hitboxes[i]);
@@ -743,7 +791,7 @@ function draw() {
   }
 
   polygonHitBox.prototype.drawBounds = function(){
-    drawPolygon(this.x,this.y,debugColor,this.fill);
+    drawPolygon(this.x,this.y,debugColor,false);
   }
 
   polygonHitBox.prototype.move = function(x,y){
@@ -751,9 +799,10 @@ function draw() {
       this.x[i] += x;
       this.y[i] += y;
     }
+    this.xp += x;
+    this.yp += y;
     this.COMx += x;
     this.COMy += y;
-    this.getMinMax();
   }
 
   polygonHitBox.prototype.moveTo = function(x,y){
@@ -763,9 +812,8 @@ function draw() {
       this.x[i] -= dx;
       this.y[i] -= dy;
     }
-    this.COMx = this.x[0] + this.COMdx;
-    this.COMy = this.y[0] + this.COMdy;
-    this.getMinMax();
+    this.COMx = this.anchorObj.dx + this.COMdx;
+    this.COMy = this.anchorObj.dy + this.COMdy;
   }
 
   polygonHitBox.prototype.getMinMax = function(){
@@ -815,9 +863,11 @@ function draw() {
     this.COMy = this.y;
     this.area = Math.pow(this.r) * Math.PI;
     this.getMinMax();
+    this.layer = this.anchorObj.layer;
   }
 
   circleHitBox.prototype.render = function(){
+    this.getMinMax();
     for(var i = 0; i < hitboxes.length; i++){
       checkObjects(this,hitboxes[i]);
     }
@@ -832,7 +882,6 @@ function draw() {
     this.y += y;
     this.COMx = this.x;
     this.COMy = this.y;
-    this.getMinMax();
   }
 
   circleHitBox.prototype.moveTo = function(x,y){
@@ -840,7 +889,6 @@ function draw() {
     this.y = y;
     this.COMx = this.x;
     this.COMy = this.y;
-    this.getMinMax();
   }
 
   circleHitBox.prototype.getMinMax = function(){
@@ -888,9 +936,11 @@ function draw() {
     this.COMy = this.y;
     this.area = 1;
     this.getMinMax();
+    this.layer = this.anchorObj.layer;
   }
 
   pointHitBox.prototype.render = function(){
+    this.getMinMax();
     for(var i = 0; i < hitboxes.length; i++){
       checkObjects(this,hitboxes[i]);
     } 
@@ -907,13 +957,11 @@ function draw() {
   pointHitBox.prototype.move = function(x,y){
     this.x += x;
     this.y += y;
-    this.getMinMax();
   }
 
   pointHitBox.prototype.moveTo = function(x,y){
     this.x = x;
     this.y = y;
-    this.getMinMax();
   }
 
   pointHitBox.prototype.getMinMax = function(){
@@ -992,6 +1040,10 @@ function draw() {
     this.type = 'polygon';
     this.timeChange = t;
     this.group = false;
+    this.w = 0;
+    this.a = 0;
+    this.dx = x[0];
+    this.dy = y[0];
   }
 
   polygon.prototype.render = function(){
@@ -999,20 +1051,20 @@ function draw() {
     this.timeChange = t;
     this.xVel += this.ax * time/100;
     this.yVel += this.ay * time/100;
+    this.w += this.a * time/100;
     this.move(this.xVel * time/100,this.yVel * time/100);
     drawPolygon(this.x,this.y,this.c,this.fill);
+    for(var i = 0; i < this.objects.length; i++){
+      if(this.objects[i].type == 'polygonHitBox'){
+        this.objects[i].rotate(this.w * time/100,this.objects[i].COMx,this.objects[i].COMy);
+      }
+    }
   }
 
   polygon.prototype.moveTo = function(x,y){
-    var dx = this.x[0] - x;
-    var dy = this.y[0] - y;
-    for(var i = 0; i < this.x.length; i++){
-      this.x[i] -= dx;
-      this.y[i] -= dy;
-    }
-    for(var i = 0; i < this.objects.length; i++){
-      this.objects[i].moveTo(this.x[0] - this.objects[i].dx,this.y[0] - this.objects[i].dy);
-    }
+    var dx = this.dx - x;
+    var dy = this.dy - y;
+    this.move(-dx,-dy);
   }
 
   polygon.prototype.move = function(x,y){
@@ -1020,6 +1072,8 @@ function draw() {
       this.x[i] += x;
       this.y[i] += y;
     }
+    this.dx += x;
+    this.dy += y;
     for(var i = 0; i < this.objects.length; i++){
       this.objects[i].moveTo(this.x[0] - this.objects[i].dx,this.y[0] - this.objects[i].dy);
     }
@@ -1197,6 +1251,36 @@ function draw() {
     }
   }
 
+  function generateSoftBody(l,h,sl,k,d,layer,X,Y,m){
+    var x = X - sl;
+    var y = Y;
+    var sl2 = Math.sqrt(sl * sl + sl * sl);
+    for(var i = 0; i < l; i++){
+      x += sl;
+      y = Y;
+      for(var j = 0; j < h; j++){
+        objects.push(new blank(x,y,layer));
+        objects[objects.length - 1].ay = 900;
+        hitboxes.push(new pointHitBox(objects[objects.length - 1], true, m, 'bounce'));
+        hitboxes.push(new circleHitBox(objects[objects.length - 1],false,1,'bounce',x,y,(sl/2.5)));
+        hitboxes[hitboxes.length - 1].layer = 2;
+        if(j > 0){
+          springs.push(new spring(objects[objects.length - 1],objects[objects.length - 2],d,k,sl));
+        }
+        if(i > 0){
+          springs.push(new spring(objects[objects.length - 1],objects[objects.length - (1 + h)],d,k,sl));
+          if(j < h - 1){
+            springs.push(new spring(objects[objects.length - 1],objects[objects.length - h],d,k,sl2));
+          }
+          if(j > 0){
+            springs.push(new spring(objects[objects.length - 1],objects[objects.length - (2 + h)],d,k,sl2));
+          }
+        }
+        y += sl;
+      }
+    }
+  }
+
   function regularPolygon(x,y,r,c,layer,n,dirz){
     var X = [];
     var Y = [];
@@ -1208,7 +1292,9 @@ function draw() {
     }
     objects.push(new polygon(X,Y,c,layer));
   }
-  objects.push(new polygon([0,50,50,0],[gameArea.height,gameArea.height,gameArea.height-50,gameArea.height-50],'rgb(255,0,0)',1));
+
+  
+  objects.push(new polygon([200,450,325],[gameArea.height,gameArea.height,gameArea.height - 50],'rgb(255,0,0)',1));
   hitboxes.push(new polygonHitBox(objects[0],true,1,'static'));
   objects.push(new polygon([0,50,50,0],[gameArea.height,gameArea.height,0,0],'rgb(255,0,0)',1));
   hitboxes.push(new polygonHitBox(objects[1],true,1,'static'));
@@ -1222,22 +1308,29 @@ function draw() {
   hitboxes.push(new polygonHitBox(objects[5],true,1,'static'));
   objects.push(new polygon([0,gameArea.width,gameArea.width,0],[gameArea.height,gameArea.height,gameArea.height-50,gameArea.height-50],'rgb(255,0,0)',1));
   hitboxes.push(new polygonHitBox(objects[6],true,1,'static'));
+
   for(var i = 0; i < 7; i++){
-    hitboxes[i].bounciness = 0.75;
+    hitboxes[i].bounciness = 0.9;
   }
-  //hitboxes[0].bounciness = 1;
+  
+  //generateSoftBody(4,10,40,100,0.5,1,100,200,10);
+  //generateSoftBody(6,6,40,100,0.5,1,500,500,10);
+  //generateSoftBody(6,6,40,100,0.5,1,800,500,10);
+  //generateSoftBody(3,3,40,100,0.5,1,1000,500,10);
+  //generateSoftBody(3,3,40,100,0.5,1,1200,300,10);
+  //generateSoftBody(5,5,50,20,0.2,1,300,200,10);
   groups.push(new group(objects.slice(0,7)));
-  for(var i = 0; i < 100; i++){
+  for(var i = 0; i < 200; i++){
     var r = getRndInteger(5,12.5);
-    objects.push(new circle(getRndInteger(70,gameArea.width-70),getRndInteger(70,gameArea.height-370),r,generateRandomColor(),0));
+    /*objects.push(new circle(getRndInteger(70,gameArea.width-70),getRndInteger(70,gameArea.height-370),r,generateRandomColor(),1));
     hitboxes.push(new circleHitBox(objects[objects.length - 1],true,Math.pow(r,2),'bounce'));
     objects[objects.length - 1].ay = 500;
-    hitboxes[hitboxes.length-1].bounciness = 1;
+    hitboxes[hitboxes.length-1].bounciness = 0.75;*/
     r = getRndInteger(5,12.5);
-    regularPolygon(getRndInteger(70,gameArea.width-70),getRndInteger(70,gameArea.height-370),r,generateRandomColor(),0,getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
+    regularPolygon(getRndInteger(70,gameArea.width-70),getRndInteger(70,gameArea.height-370),r,generateRandomColor(),1,getRndInteger(3,8),getRndInteger(0,Math.PI*200)/100);
     hitboxes.push(new polygonHitBox(objects[objects.length - 1],true,Math.pow(r,2),'bounce'));
     objects[objects.length - 1].ay = 500;
-    hitboxes[hitboxes.length-1].bounciness = 1;
+    hitboxes[hitboxes.length-1].bounciness = 0.75;
   }
 
   var time = setInterval(Timer, 10);
@@ -1248,15 +1341,17 @@ function draw() {
     }
   }
 
+  console.log(hitboxes[0].i);
+  
   function refresh(){
     draw.clearRect(0, 0, gameArea.width, gameArea.height);
     renderObject(groups);
     renderObject(objects);
     renderObject(hitboxes);
     renderObject(debugObjects);
-    moveObject(objects[0]);
+    renderObject(springs);
     debug();
-    objects[0].moveTo(mouseX-25,mouseY+25);
+    objects[0].moveTo(mouseX-75,mouseY+25);
     //put collision based reactions here
 
     resetCollisions();
